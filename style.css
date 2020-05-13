@@ -1,0 +1,28 @@
+html{
+    font-family: 'Open Sans', sans-serif;
+    background-color: #f8f8ff;
+}
+
+body{
+    height: 100%;
+    min-height: 100%;
+}
+
+.is-spaced{
+    padding: 2rem 2rem;
+}
+
+.is-headline{
+    font-family: 'Playfair Display', serif;
+    font-size: 38px;
+}
+
+.table{
+    background-color: transparent;
+}
+
+.footer{
+    background-color: transparent;
+}
+
+

@@ -6,26 +6,85 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<title>Friends?</title>
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.7.1/css/bulma.min.css">
+	<link rel="stylesheet" href="style.css">
 	<script defer src="https://use.fontawesome.com/releases/v5.1.0/js/all.js"></script>
+	<link href="https://fonts.googleapis.com/css2?family=Open+Sans&family=Playfair+Display&display=swap" rel="stylesheet">
 </head>
 
 <body>
 
 	<div class="container">
-		<div class="notification">
-		  This container is <strong>fluid</strong>: it will have a 32px gap on either side, on any
-		  viewport size.
-		</div>
+		<nav class="is-spaced">
+			<div class="container">
+				<span class="is-headline" style="font-size: 42px;">Random Topics</span>
+			</div>
+			<div class="container">
+				
+			</div>
+		</nav>
 
-		<footer class="footer">
+		<main style="padding: 1rem 2rem;">
+			
+			<div class="content">
+				<table class="table is-hoverable">
+					<thead>
+					  <tr>
+						<th><abbr title="Number">Nr.</abbr></th>
+						<th>Headline</th>
+						<th>Date published</abbr></th>
+					  </tr>
+					</thead>
+
+					<tbody>
+					  <tr>
+						<th>1</th>
+						<td>
+							<a href="angles.html" >
+								How to measure angles
+							</a> 
+						</td>
+						<td>16 May 2020</td>
+						
+					  </tr>
+					  <tr>
+						<th>2</th>
+						<td><a href="" >What is engineering?</a></td>
+						<td>to be announced</td>
+						
+					  </tr>
+					  <tr>
+						<th>3</th>
+						<td><a href="" >How to describe motion</a></td>
+						<td>to be announced</td>
+					  </tr>
+
+					  <tr>
+						<th>4</th>
+						<td><a href="" >What is a wave?</a></td>
+						<td>to be announced</td>
+					  </tr>
+
+					  <tr>
+						<th>5</th>
+						<td><a href="" >What is a metal?</a></td>
+						<td>to be announced</td>
+					  </tr>
+					 
+					</tbody>
+				  </table>
+			</div>
+
+		</main>
+
+		<footer class="footer is-fluid is-fixed-bottom">
 			<div class="content has-text-centered">
 			  <p>
-				<strong>Bulma</strong> by <a href="https://jgthms.com">Jeremy Thomas</a>. The source code is licensed
+				by <a href="https://github.com/koeller21">Arne Koeller</a>. The source code is licensed
 				<a href="http://opensource.org/licenses/mit-license.php">MIT</a>. The website content
 				is licensed <a href="http://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY NC SA 4.0</a>.
 			  </p>
 			</div>
-		  </footer>
+		</footer>
 	</div>
 
 
