@@ -1,6 +1,7 @@
 html{
-    font-family: 'Open Sans', sans-serif;
-    background-color: #f8f8ff;
+    font-family: "Lucida Console", monospace;
+    background-color: black;
+    color: ghostwhite;
 }
 
 body{
@@ -8,21 +9,9 @@ body{
     min-height: 100%;
 }
 
-.is-spaced{
-    padding: 2rem 2rem;
+ul{
+    list-style-type: square;
 }
 
-.is-headline{
-    font-family: 'Playfair Display', serif;
-    font-size: 38px;
-}
-
-.table{
-    background-color: transparent;
-}
-
-.footer{
-    background-color: transparent;
-}
 
 
