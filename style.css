@@ -1,7 +1,7 @@
 html{
     font-family: "Lucida Console", monospace;
-    background-color: black;
-    color: ghostwhite;
+    background-color: #111111;
+    color: #FFFFFF;
 }
 
 body{
@@ -13,5 +13,11 @@ ul{
     list-style-type: square;
 }
 
+a{
+	color: #0074D9;
+}
 
-
+.blog_text{
+	max-width: 600px;
+	margin-bottom:300px;
+}
