@@ -21,3 +21,7 @@ a{
 	max-width: 600px;
 	margin-bottom:300px;
 }
+
+li{
+    margin: 0 0 10px 0;
+}
