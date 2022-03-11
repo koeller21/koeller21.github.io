@@ -2,6 +2,13 @@ html{
     font-family: "Lucida Console", monospace;
     background-color: #111111;
     color: #FFFFFF;
+
+    background-image: url("../imgs/22083.jpg"); no-repeat center center fixed; 
+    -webkit-background-size: cover;
+    -moz-background-size: cover;
+    -o-background-size: cover;
+    background-size: cover;
+    opacity: 0.95;
 }
 
 body{
@@ -10,12 +17,23 @@ body{
     line-height: 1.2;
 }
 
+
+#main_topics{
+    background-color: #111111;
+    padding: 5px;
+}
+
 ul{
     list-style-type: square;
 }
 
 a{
 	color: #0074D9;
+}
+
+.blog_text_wrapper{
+    background-color: #111111;
+    padding: 5px;
 }
 
 .blog_text{
