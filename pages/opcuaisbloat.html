@@ -10,9 +10,9 @@
 </head>
 
 <body>
-
+	
 	<a id="top_anchor"></a>
-
+	
 	<header class="container-fluid">
 		<div class="container">
 			<a href="../index.html">&#128281; back home </a>
@@ -69,7 +69,7 @@
 					Not being able to understand the core idea behind something is in fact a huge issue.
 					<ul>
 						<li>TCP is a stateful transport protocol that also prevents flooding and congestion</li>
-						<li>UDP is a stateless transport protocol that's lightweight</li>
+						<li>UDP is a stateless transport protocol which makes it lightweight</li>
 						<li>Ethernet is a link layer protocol that connectes computers in a single 'collision domain' </li>
 						<li>MQTT is a broker-based PubSub application protocol</li>
 					</ul>
@@ -143,50 +143,55 @@
 					Also it remains questionable whether this concept is that much advantageous 
 					for day-to-day industry operations. Most Modbus, EthernetIP, MQTT, etc. servers
 					run for years without ever being changed. ROS2 DDS uses a similar concept to OPC UA, the 
-					<a href="https://docs.ros.org/en/galactic/Concepts/About-ROS-Interfaces.html">
-						Interface Definition Language</a>.
-					</p>
-					
-					<p>
-						OPC UA sucks because the core idea behind it may be good but the execution is very poor.
-						Truth is, no one will care how comprehensive and good your 
-						security concepts and address space browsing services are if you can't convey your core
-						idea and motivation to developers. 
-					</p>
-					
-					<p>
-						Sure, there are OPC UA protocol implementations. Of course, there are some industry adopters.
-						But will there be in 20-30 years of time? One can already see that OPC UA is an out-of-date
-						protocol, as they add hundreds of more pages regarding PubSub to their
-						already bloated reference documentation. Which developer would want to maintain an 
-						implementation of this? Which industry adopter would assign a software dev to implement an OPC UA
-						server for their machine if the protocol is so complicated and poorly documented?
-					</p>
-					
-					<p>
-						It is not difficult to come up with a network protocol definition and implementation.
-						So why make the protocol overly complicated and bloated? You'll be replaced by some other
-						protocol, that implements the core ideas and features in a less bloated way, in the future. 
-					</p>
-					
+					<a href="https://docs.ros.org/en/galactic/Concepts/About-ROS-Interfaces.html">Interface Definition Language</a>.
+					Serialization frameworks such as 
+					<a href="https://capnproto.org/language.html">Cap'n Proto</a>
+					or 
+					<a href="https://developers.google.com/protocol-buffers/docs/proto3">Protocol Buffers</a>
+					use strongly-typed IDLs as well. Compared to OPC UA, these frameworks do not define or provide the 
+					socket-level means to send or receive messages.
 				</p>
 				
+				<p>
+					OPC UA sucks because the core idea behind it may be good but the execution is very poor.
+					Truth is, no one will care how comprehensive and good your 
+					security concepts and address space browsing services are if you can't convey your core
+					idea and motivation to developers. 
+				</p>
 				
+				<p>
+					Sure, there are OPC UA protocol implementations. Of course, there are some industry adopters.
+					But will there be in 20-30 years of time? One can already see that OPC UA is an out-of-date
+					protocol, as they add hundreds of more pages regarding PubSub to their
+					already bloated reference documentation. Which developer would want to maintain an 
+					implementation of this? Which industry adopter would assign a software dev to implement an OPC UA
+					server for their machine if the protocol is so complicated and poorly documented?
+				</p>
 				
+				<p>
+					It is not difficult to come up with a network protocol definition and implementation.
+					So why make the protocol overly complicated and bloated? You'll be replaced by some other
+					protocol, that implements the core ideas and features in a less bloated way, in the future. 
+				</p>
 				
-				
-			</div>
+			</p>
+			
+			
+			
+			
 			
 		</div>
+		
 	</div>
+</div>
 
-	<footer class="container-fluid">
-		<div class="container">
-			<a href="#top_anchor">&#128285;</a>
-		</div>
-	</footer>
-	
-	
+<footer class="container-fluid">
+	<div class="container">
+		<a href="#top_anchor">&#128285;</a>
+	</div>
+</footer>
+
+
 </body>
 
 </html>
