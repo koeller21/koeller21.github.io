@@ -1,83 +1,62 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 
 <head>
 	<meta charset="utf-8">
+    <meta name="description" content="This is a personal technology blog dedicated to understanding and exploring technology in depth. Covering computer systems and technology.">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<title>index</title>
-	<link rel="stylesheet" href="styles/style.css">
-	<link rel="stylesheet" href="styles/pico.min.css">
+	<title>Arne's Blog</title>
+	<link rel="stylesheet" href="styles/chota.css">
+
+    <script type="text/javascript" src="scripts/main.js"></script>
+
+
+    <style>
+		:root{
+			--grid-maxWidth: 90rem;
+		}
+        body.dark {
+        --bg-color: #000;
+        --bg-secondary-color: #131316;
+        --font-color: #f5f5f5;
+        --color-grey: #ccc;
+        --color-darkGrey: #777;
+        }
+	</style>
+
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+    <link rel="manifest" href="/site.webmanifest">
+
+
 </head>
 
 <body>
-	
-	<header class="container-fluid">
-		<div class="container">
-			<hgroup>
-				<h1>0x7f454c46</h1>
-				<h2>
-					random stuff I work on.
-					<a href="https://github.com/koeller21">github</a>
-				</h2>
-			</hgroup>
-			
-		</div>
-	</header>
-	
-	<div class="container-fluid">
-		<div class="container">
-			<ul>
-				<li>
-					<i>26.08.2022</i>
-					<a href="other/HackerCulture.pdf">Hacker Culture and Mindset</a>
-				</li>	
-				<li>
-					<i>20.03.2022</i>
-					<a href="pages/who.html">Who speaks for earth?</a>
-				</li>	
-				<li>
-					<i>28.02.2022</i>
-					<a href="pages/decentralization.html">On Ukraine and decentralization</a>
-				</li>	
-				<li>
-					<i>06.01.2022</i>
-					<a href="pages/opcuaisbloat.html">Why OPC UA sucks</a>
-				</li>
-				<li>
-					<i>01.04.2020</i>
-					<a href="other/voe_lambda.pdf">Datengetriebene Leistungserfasssung bei Bergbaumaschinen</a>
-				</li>
-				<li>
-					<i>26.04.2019</i>
-					<a href="other/masterarbeit.pdf">Evaluation von Reinforcement Learning Algorithmen im Kontext autonomer Fahrzeuge</a>
-				</li>
-				<li>
-					<i>18.09.2018</i>
-					<a href="other/seminararbeit.pdf">Deep Learning-Objekterkennung von Fußballspielern</a> /w <a href="https://github.com/butterbee1609">Rene</a> und <a href="https://github.com/bene77">Benedict</a> 
-					
-				</li>
-				<li>
-					<i>02.03.2018</i>
-					<a href="other/compilerbau.pdf">Projekt im Fach Compilerbau: Magic-Compiler</a> /w <a href="https://github.com/butterbee1609">Rene</a> und <a href="https://github.com/bene77">Benedict</a> 
-					
-				</li>
-				<li>
-					<i>30.01.2018</i>
-					<a href="other/softwaretechnik.pdf">Vortrag: SW-Engineering für Blockchains</a>
-					
-				</li>
-				<li>
-					<i>24.01.2018</i>
-					<a href="other/arp_dns_vortrag.pdf">Laborprojekt im Fach Advanced IT Security</a> /w <a href="https://github.com/butterbee1609">Rene</a> und <a href="https://github.com/bene77">Benedict</a> 
-					
-				</li>
-			</ul>
-		</div>
-	</div>
-	
-	
-	
-	
-</body>
+    <div id="top" class="container" role="document" style="padding-top: 40px;">
+        <header role="banner">
+            <h1 style="margin:0;float:right !important">
+                <a href="javascript:void(0)" onclick="switchMode(this)">☀️</a>
+            </h1>
+            <h1 style="margin-bottom: 0;">
+                Arne's Blog
+            </h1>
+            <p>
+                humbly understanding technology, as though I've invented it myself
+            </p>
+        </header>
 
-</html>
+        <nav role="navigation">
+            <ul style="list-style-type: square;">
+                <li>
+                    <a href="pages/opcuaisbloat.html"> 06.01.2022 ~ Why OPC UA kinda sucks</a>
+                </li>
+                <li>
+                    <a href="other/masterarbeit.pdf"> 26.04.2019 ~ Evaluation von Reinforcement Learning Algorithmen im Kontext autonomer Fahrzeuge</a>
+                </li>
+            </ul>
+        </nav>
+    </div>
+
+
+</body>
