@@ -1,22 +1,100 @@
-html{
-    font-family: "Lucida Console", monospace;
+/* Variable Definitions */
+:root {
+    --primary-font: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    --primary-color: #0b0c0c;
+    --header-font: 'Lucida console', monospace;
+    --font-size: 1rem;
+    --line-height: 1.5;
+    --primary-link-color: #1d70b8;
+    --primary-link-hover-color: #003078;
+    --focus-outline-color: transparent;
+    --focus-bg-color: #fd0;
+    --focus-box-shadow: 0 -2px #fd0, 0 4px #0b0c0c;
 }
 
-body{
-    height: 100%;
-    min-height: 100%;
-    
+/* Reset and Box Sizing */
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
 }
 
-ul{
+/* HTML Defaults */
+html {
+    color-scheme: light;
+}
+
+/* Body Styling */
+body {
+    font-family: var(--primary-font);
+    font-size: var(--font-size);
+    line-height: var(--line-height);
+}
+
+/* Header Styling */
+h1, h2, h3, h4, h5, h6 {
+    font-family: var(--header-font);
+    margin: 20px 0 20px 0;
+}
+
+/* Image and Media */
+img, svg, video, picture {
+    max-width: 100%;
+}
+
+/* List Styling */
+ol, ul {
     list-style-type: square;
-    line-height: 2;
 }
 
-a, a.clicked{
-	color: #0074D9;
+ol, ul li {
+    margin-top: 10px;
+    margin-bottom: 10px;
 }
 
-li{
-    margin: 0 0 10px 0;
+p {
+    margin-bottom: 1rem;
+}
+
+/* Anchor Styling */
+a {
+    color: var(--primary-link-color);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-decoration: underline;
+    text-decoration-thickness: max(1px, 0.0625rem);
+    text-underline-offset: 0.1578em;
+}
+
+/* Anchor Hover State */
+a:hover {
+    color: var(--primary-link-hover-color);
+    text-decoration-thickness: max(3px, 0.1875rem, 0.12em);
+    -webkit-text-decoration-skip-ink: none;
+    text-decoration-skip-ink: none;
+    -webkit-text-decoration-skip: none;
+}
+
+/* Anchor Focus State */
+a:focus {
+    outline: 3px solid var(--focus-outline-color);
+    color: var(--primary-color);
+    background-color: var(--focus-bg-color);
+    box-shadow: var(--focus-box-shadow);
+    text-decoration: none;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+}
+
+/* Grid Layout */
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(0%, 1fr));
+    grid-column-gap: 10px;
+    grid-row-gap: 10px;
+}
+
+/* Container for Content */
+.container {
+    width: min(100ch, 100% - 4rem);
+    margin-inline: auto;
 }
