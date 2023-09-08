@@ -95,6 +95,6 @@ a:focus {
 
 /* Container for Content */
 .container {
-    width: min(100ch, 100% - 4rem);
+    width: min(100ch, 100% - 1.5rem);
     margin-inline: auto;
 }
