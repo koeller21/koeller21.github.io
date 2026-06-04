@@ -168,7 +168,7 @@ function closeOv(){ ov.hidden = true; }
 function openAbout(){
     sheet.innerHTML =
         '<a href="#" data-act="close">close</a>'
-        + '<h3>how progression works</h3>'
+        + '<h3>progression rules</h3>'
         + '<p>Two heavy working sets per exercise with double progression. '
         + 'Each exercise has a target rep range (for example 6 to 8). The recommended '
         + '<b>next</b> target is computed from your last session:</p>'
