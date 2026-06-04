@@ -173,6 +173,12 @@ function delExercise(i){
 
 function closeOv(){ ov.hidden = true; }
 
+function toggleTheme(){
+    var t = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
+    document.documentElement.dataset.theme = t;
+    localStorage.setItem('wtheme', t);
+}
+
 function openAbout(){
     sheet.innerHTML =
         '<a href="#" data-act="close">close</a>'
@@ -251,6 +257,7 @@ document.addEventListener('DOMContentLoaded', function(){
         else if(act === 'about')   openAbout();
         else if(act === 'export')  exportData();
         else if(act === 'import')  document.getElementById('importfile').click();
+        else if(act === 'theme')   toggleTheme();
         else if(act === 'close')   closeOv();
     });
 

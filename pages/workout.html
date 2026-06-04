@@ -8,6 +8,7 @@
 
 	<title>workout log</title>
 
+	<script>try{document.documentElement.dataset.theme=localStorage.getItem('wtheme')||'dark'}catch(e){}</script>
 	<link rel="stylesheet" href="../styles/workout.css">
 	<link rel="icon" type="image/x-icon" href="../favicon.ico">
 </head>
@@ -28,6 +29,7 @@
 			<a href="#" data-act="about">progression rules</a>
 			<a href="#" data-act="export">export</a>
 			<a href="#" data-act="import">import</a>
+			<a href="#" data-act="theme">toggle theme</a>
 			<input type="file" id="importfile" accept="application/json" hidden>
 		</footer>
 	</div>

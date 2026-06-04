@@ -1,20 +1,28 @@
-:root{
-    --fg:#0b0c0c;
-    --link:#1d70b8;
+:root{                                /* dark (default) */
+    --bg:#0d1117;
+    --surface:#161b22;
+    --fg:#e6edf3;
+    --muted:#8b949e;
+    --line:#30363d;
+    --link:#6cb6ff;
+    --danger:#ff7b72;
     --mono:'Lucida Console', monospace;
     --sans:system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
-
+html[data-theme="light"]{             /* light (original palette) */
+    color-scheme:light;
+    --bg:#fff; --surface:#fff; --fg:#0b0c0c; --muted:#666; --line:#ddd; --link:#1d70b8; --danger:#a00;
+}
 *, *::before, *::after{ box-sizing:border-box; margin:0; }
-html{ color-scheme:light; }
-body{ font-family:var(--sans); color:var(--fg); line-height:1.5; padding:10px; }
+html{ color-scheme:dark; }
+body{ font-family:var(--sans); background:var(--bg); color:var(--fg); line-height:1.5; padding:10px; }
 
 .container{ width:min(100ch, 100% - 1.5rem); margin-inline:auto; }
 a{ color:var(--link); }
 
 .scroll{ overflow-x:auto; margin-top:1rem; }
 table{ border-collapse:collapse; width:100%; white-space:nowrap; }
-td{ padding:.5rem .6rem; border-bottom:1px solid #ddd; }
+td{ padding:.5rem .6rem; border-bottom:1px solid var(--line); }
 th{ padding:.5rem .6rem; text-align:left; font-family:var(--mono); border-bottom:2px solid var(--fg); white-space:nowrap; }
 tr.h td{
     font-family:var(--mono);
@@ -30,13 +38,13 @@ tr.h td{
 
 /* subtle footer links */
 footer{ margin-top:3rem; font-size:.85rem; }
-footer a{ margin-right:1.5rem; color:#666; }
+footer a{ margin-right:1.5rem; color:var(--muted); }
 
 /* fullscreen entry / log overlay */
-#ov{ position:fixed; top:0; right:0; bottom:0; left:0; background:#fff; z-index:9; padding:1.2rem; overflow:auto; -webkit-overflow-scrolling:touch; }
+#ov{ position:fixed; top:0; right:0; bottom:0; left:0; background:var(--surface); z-index:9; padding:1.2rem; overflow:auto; -webkit-overflow-scrolling:touch; }
 #ov[hidden]{ display:none; }
 #ov h3{ font-family:var(--mono); margin:.8rem 0; }
 #ov label{ display:block; margin:.8rem 0; font-family:var(--mono); }
 #ov input{ display:block; font-size:1.4rem; padding:.5rem; width:100%; margin-top:.3rem; }
 #ov button{ font-size:1.2rem; padding:.8rem; width:100%; margin-top:1.2rem; }
-#ov button.danger{ color:#a00; }
+#ov button.danger{ color:var(--danger); }
