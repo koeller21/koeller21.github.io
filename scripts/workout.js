@@ -58,10 +58,10 @@ function rowHtml(ex, i){
     var next = computeNext(ex);
     return '<tr>'
         + '<td class="tap" data-act="editex" data-i="' + i + '">' + esc(ex.name) + '</td>'
-        + '<td class="tap" data-act="entry" data-i="' + i + '">' + (has ? cur.w : '—') + '</td>'
-        + '<td class="tap" data-act="entry" data-i="' + i + '">' + (has ? cur.r.join(',') : '—') + '</td>'
-        + '<td>' + (next.w == null ? '—' : next.w) + '</td>'
-        + '<td>' + (next.reps == null ? '—' : next.reps) + '</td>'
+        + '<td class="tap" data-act="entry" data-i="' + i + '">' + (has ? cur.w : '-') + '</td>'
+        + '<td class="tap" data-act="entry" data-i="' + i + '">' + (has ? cur.r.join(',') : '-') + '</td>'
+        + '<td>' + (next.w == null ? '-' : next.w) + '</td>'
+        + '<td>' + (next.reps == null ? '-' : next.reps) + '</td>'
         + '<td><a href="#" data-act="log" data-i="' + i + '">log</a></td>'
         + '</tr>';
 }
@@ -180,6 +180,7 @@ function openAbout(){
         + '<p>Two heavy working sets per exercise with double progression. '
         + 'Each exercise has a target rep range (for example 6 to 8). The recommended '
         + '<b>next</b> target is computed from your last session:</p>'
+        + '<br/>'
         + '<ul>'
         + '<li><b>add weight:</b> set 1 reached the top of the range and set 2 stayed in range. '
         + 'Load goes up by the exercise\'s increment and reps reset to the bottom of the range.</li>'
@@ -187,7 +188,8 @@ function openAbout(){
         + '<li><b>repeat:</b> set 1 fell below the bottom of the range. Try the same target again.</li>'
         + '<li><b>deload:</b> three sessions in a row below the bottom. Drop one step and rebuild.</li>'
         + '</ul>'
-        + '<p>Set an exercise\'s increment to 0 to turn progression off — it just records your sets, with no suggested target.</p>';
+        + '<br/>'
+        + '<p>Set an exercise\'s increment to 0 to turn progression off - it just records your sets, with no suggested target.</p>';
     ov.hidden = false;
 }
 
