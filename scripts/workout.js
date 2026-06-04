@@ -24,7 +24,10 @@ function DEFAULTS(){
 
 var data = [], rows, ov, sheet;
 
-function loadData(){ var d = JSON.parse(localStorage.getItem('wlog')); return Array.isArray(d) ? d : DEFAULTS(); }
+function loadData(){
+    try { var d = JSON.parse(localStorage.getItem('wlog')); return Array.isArray(d) ? d : DEFAULTS(); }
+    catch(e){ return DEFAULTS(); }                // corrupt storage -> fall back instead of bricking init
+}
 function save(){ localStorage.setItem('wlog', JSON.stringify(data)); }
 function today(){ var d = new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }   // local date
 function fmtDate(d){ var p = d.split('-'); return p[2] + '.' + p[1] + '.' + p[0]; }   // ISO -> DD.MM.YYYY
@@ -202,10 +205,14 @@ function importData(file){
     reader.onload = function(){
         try {
             var arr = JSON.parse(reader.result);
+            var okEntry = function(s){                                  // a log entry: {d:string, w:number, r:[number,number]}
+                return s && typeof s.d === 'string' && typeof s.w === 'number'
+                    && Array.isArray(s.r) && s.r.length === 2 && typeof s.r[0] === 'number' && typeof s.r[1] === 'number';
+            };
             var ok = Array.isArray(arr) && arr.every(function(e){       // reject malformed files instead of crashing render()
                 return e && typeof e.name === 'string' && typeof e.grp === 'string'
                     && typeof e.min === 'number' && typeof e.max === 'number' && typeof e.inc === 'number'
-                    && Array.isArray(e.log);
+                    && Array.isArray(e.log) && e.log.every(okEntry);
             });
             if(!ok) throw 0;
             if(data.length && !confirm('Replace your current exercises and history with this file?')) return;
