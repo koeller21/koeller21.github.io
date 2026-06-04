@@ -1,0 +1,41 @@
+:root{
+    --fg:#0b0c0c;
+    --link:#1d70b8;
+    --mono:'Lucida Console', monospace;
+    --sans:system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+*, *::before, *::after{ box-sizing:border-box; margin:0; }
+html{ color-scheme:light; }
+body{ font-family:var(--sans); color:var(--fg); line-height:1.5; padding:10px; }
+
+.container{ width:min(100ch, 100% - 1.5rem); margin-inline:auto; }
+a{ color:var(--link); }
+
+.scroll{ overflow-x:auto; margin-top:1rem; }
+table{ border-collapse:collapse; width:100%; white-space:nowrap; }
+td{ padding:.5rem .6rem; border-bottom:1px solid #ddd; }
+th{ padding:.5rem .6rem; text-align:left; font-family:var(--mono); border-bottom:2px solid var(--fg); white-space:nowrap; }
+tr.h td{
+    font-family:var(--mono);
+    font-weight:bold;
+    border-bottom:2px solid var(--fg);
+    padding-top:1.2rem;
+}
+.tap{ cursor:pointer; color:var(--link); text-decoration:underline; }
+
+/* log table inside the overlay */
+.logt{ margin-top:1rem; }
+.logt th, .logt td{ padding:.4rem 1.5rem .4rem 0; }
+
+/* subtle footer links */
+footer{ margin-top:3rem; font-size:.85rem; }
+footer a{ margin-right:1.5rem; color:#666; }
+
+/* fullscreen entry / log overlay */
+#ov{ position:fixed; inset:0; background:#fff; z-index:9; padding:1.2rem; overflow:auto; }
+#ov[hidden]{ display:none; }
+#ov h3{ font-family:var(--mono); margin:.8rem 0; }
+#ov label{ display:block; margin:.8rem 0; font-family:var(--mono); }
+#ov input{ display:block; font-size:1.4rem; padding:.5rem; width:100%; margin-top:.3rem; }
+#ov button{ font-size:1.2rem; padding:.8rem; width:100%; margin-top:1.2rem; }

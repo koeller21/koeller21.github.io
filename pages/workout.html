@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta name="Author" content="Arne Koeller">
+
+	<title>workout log</title>
+
+	<link rel="stylesheet" href="../styles/workout.css">
+	<link rel="icon" type="image/x-icon" href="../favicon.ico">
+</head>
+
+<body>
+
+	<div class="container">
+		<a href="../index.html">back home</a>
+		<div class="scroll">
+			<table>
+				<thead><tr><th>exercise</th><th>kg</th><th>reps</th><th>next kg</th><th>next reps</th><th></th></tr></thead>
+				<tbody id="rows"></tbody>
+			</table>
+		</div>
+
+		<footer>
+			<a href="#" data-act="about">how progression works</a>
+			<a href="#" data-act="export">export</a>
+			<a href="#" data-act="import">import</a>
+			<input type="file" id="importfile" accept="application/json" hidden>
+		</footer>
+	</div>
+
+	<div id="ov" hidden><div id="sheet"></div></div>
+
+	<script src="../scripts/workout.js"></script>
+
+</body>
+
+</html>
