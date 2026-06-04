@@ -33,7 +33,7 @@ footer{ margin-top:3rem; font-size:.85rem; }
 footer a{ margin-right:1.5rem; color:#666; }
 
 /* fullscreen entry / log overlay */
-#ov{ position:fixed; inset:0; background:#fff; z-index:9; padding:1.2rem; overflow:auto; }
+#ov{ position:fixed; top:0; right:0; bottom:0; left:0; width:100%; height:100%; background:#fff; z-index:9; padding:1.2rem; overflow:auto; -webkit-overflow-scrolling:touch; }
 #ov[hidden]{ display:none; }
 #ov h3{ font-family:var(--mono); margin:.8rem 0; }
 #ov label{ display:block; margin:.8rem 0; font-family:var(--mono); }

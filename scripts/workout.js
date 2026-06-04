@@ -26,25 +26,27 @@ var data = [], rows, ov, sheet;
 
 function loadData(){ var d = JSON.parse(localStorage.getItem('wlog')); return Array.isArray(d) ? d : DEFAULTS(); }
 function save(){ localStorage.setItem('wlog', JSON.stringify(data)); }
-function today(){ return new Date().toISOString().slice(0, 10); }
+function today(){ var d = new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }   // local date
 function fmtDate(d){ var p = d.split('-'); return p[2] + '.' + p[1] + '.' + p[0]; }   // ISO -> DD.MM.YYYY
 function esc(s){ return String(s).replace(/[&<>"]/g, function(c){
     return {'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;'}[c]; }); }
 
+// Suggested next {w, reps}, or {w:null, reps:null} when there is no suggestion:
+// no history yet, OR increment 0 = progression turned off for this exercise.
 function computeNext(ex){
     var log = ex.log;
-    if(!log || !log.length) return {w:null, reps:ex.min, mode:'baseline'};
+    if(!ex.inc || !log.length) return {w:null, reps:null};
     var last = log[log.length-1], s1 = last.r[0], s2 = last.r[1], w = last.w;
 
     if(s1 >= ex.max && s2 >= ex.min)              // PROGRESS: add load, reset to bottom
-        return {w: w + ex.inc, reps: ex.min, mode:'progress'};
+        return {w: w + ex.inc, reps: ex.min};
     if(s1 >= ex.min)                              // HOLD: same load, target +1 rep
-        return {w: w, reps: Math.min(s1 + 1, ex.max), mode:'hold'};
+        return {w: w, reps: Math.min(s1 + 1, ex.max)};
 
     var stalls = 0;                               // STALL: count trailing sub-min sessions
     for(var i = log.length-1; i >= 0 && log[i].r[0] < ex.min; i--) stalls++;
-    if(stalls >= 3) return {w: w - ex.inc, reps: ex.min, mode:'deload'};
-    return {w: w, reps: ex.min, mode:'retry'};
+    if(stalls >= 3) return {w: Math.max(0, w - ex.inc), reps: ex.min};   // deload (never below 0)
+    return {w: w, reps: ex.min};                  // retry
 }
 
 function rowHtml(ex, i){
@@ -55,8 +57,8 @@ function rowHtml(ex, i){
         + '<td class="tap" data-act="editex" data-i="' + i + '">' + esc(ex.name) + '</td>'
         + '<td class="tap" data-act="entry" data-i="' + i + '">' + (has ? cur.w : '—') + '</td>'
         + '<td class="tap" data-act="entry" data-i="' + i + '">' + (has ? cur.r.join(',') : '—') + '</td>'
-        + '<td>' + (has ? next.w : '—') + '</td>'
-        + '<td>' + (has ? next.reps : '—') + '</td>'
+        + '<td>' + (next.w == null ? '—' : next.w) + '</td>'
+        + '<td>' + (next.reps == null ? '—' : next.reps) + '</td>'
         + '<td><a href="#" data-act="log" data-i="' + i + '">log</a></td>'
         + '</tr>';
 }
@@ -75,20 +77,23 @@ function render(){
 
 function openEntry(i){
     var ex = data[i], next = computeNext(ex);
-    var w = next.w != null ? next.w : '';
+    var last = ex.log.length ? ex.log[ex.log.length-1] : null;   // no suggestion -> prefill "repeat last"
+    var w  = next.w    != null ? next.w    : (last ? last.w    : '');
+    var r1 = next.reps != null ? next.reps : (last ? last.r[0] : ex.min);
+    var r2 = next.reps != null ? next.reps : (last ? last.r[1] : ex.min);
     sheet.innerHTML =
         '<a href="#" data-act="close">close</a>'
         + '<h3>' + esc(ex.name) + '</h3>'
         + '<p>target: ' + ex.min + ' to ' + ex.max + ' reps · 2 sets</p>'
-        + '<label>kg<input id="ew" type="number" inputmode="decimal" step="0.25" value="' + w + '"></label>'
-        + '<label>set 1 reps<input id="e1" type="number" inputmode="numeric" value="' + next.reps + '"></label>'
-        + '<label>set 2 reps<input id="e2" type="number" inputmode="numeric" value="' + next.reps + '"></label>'
+        + '<label>kg<input id="ew" type="text" inputmode="decimal" value="' + w + '"></label>'
+        + '<label>set 1 reps<input id="e1" type="number" inputmode="numeric" value="' + r1 + '"></label>'
+        + '<label>set 2 reps<input id="e2" type="number" inputmode="numeric" value="' + r2 + '"></label>'
         + '<button data-act="savecur" data-i="' + i + '">save</button>';
     ov.hidden = false;
 }
 
 function saveEntry(i){
-    var w  = parseFloat(document.getElementById('ew').value);
+    var w  = parseFloat(document.getElementById('ew').value.replace(',', '.'));
     var s1 = parseInt(document.getElementById('e1').value, 10);
     var s2 = parseInt(document.getElementById('e2').value, 10);
     if(isNaN(w) || isNaN(s1) || isNaN(s2)) return;   // ignore incomplete entries
@@ -133,7 +138,7 @@ function openExercise(i){
         + '<datalist id="grps">' + opts + '</datalist>'
         + '<label>min reps<input id="xmin" type="number" inputmode="numeric" value="' + ex.min + '"></label>'
         + '<label>max reps<input id="xmax" type="number" inputmode="numeric" value="' + ex.max + '"></label>'
-        + '<label>increment kg<input id="xinc" type="number" inputmode="decimal" step="0.25" value="' + ex.inc + '"></label>'
+        + '<label>increment kg<input id="xinc" type="text" inputmode="decimal" value="' + ex.inc + '"></label>'
         + '<button data-act="saveex" data-i="' + i + '">save</button>'
         + del;
     ov.hidden = false;
@@ -144,10 +149,10 @@ function saveExercise(i){
     var grp  = document.getElementById('xg').value.trim().toUpperCase() || 'OTHER';
     var min  = parseInt(document.getElementById('xmin').value, 10);
     var max  = parseInt(document.getElementById('xmax').value, 10);
-    var inc  = parseFloat(document.getElementById('xinc').value);
+    var inc  = parseFloat(document.getElementById('xinc').value.replace(',', '.'));
     if(!name){ alert('name required'); return; }
     if(isNaN(min) || isNaN(max) || min < 1 || min > max){ alert('need min <= max'); return; }
-    if(isNaN(inc) || inc <= 0){ alert('increment must be > 0'); return; }
+    if(isNaN(inc) || inc < 0){ alert('increment must be 0 or more'); return; }   // 0 = progression off
     if(i >= 0){                                   // edit: keep existing log
         data[i].name = name; data[i].grp = grp;
         data[i].min = min;   data[i].max = max; data[i].inc = inc;
@@ -178,7 +183,8 @@ function openAbout(){
         + '<li><b>hold:</b> set 1 is inside the range but below the top. Keep the weight and aim for one more rep.</li>'
         + '<li><b>repeat:</b> set 1 fell below the bottom of the range. Try the same target again.</li>'
         + '<li><b>deload:</b> three sessions in a row below the bottom. Drop one step and rebuild.</li>'
-        + '</ul>';
+        + '</ul>'
+        + '<p>Set an exercise\'s increment to 0 to turn progression off — it just records your sets, with no suggested target.</p>';
     ov.hidden = false;
 }
 
@@ -196,7 +202,12 @@ function importData(file){
     reader.onload = function(){
         try {
             var arr = JSON.parse(reader.result);
-            if(!Array.isArray(arr)) throw 0;
+            var ok = Array.isArray(arr) && arr.every(function(e){       // reject malformed files instead of crashing render()
+                return e && typeof e.name === 'string' && typeof e.grp === 'string'
+                    && typeof e.min === 'number' && typeof e.max === 'number' && typeof e.inc === 'number'
+                    && Array.isArray(e.log);
+            });
+            if(!ok) throw 0;
             if(data.length && !confirm('Replace your current exercises and history with this file?')) return;
             localStorage.setItem('wlog', JSON.stringify(arr));
             data = loadData(); render(); closeOv();
