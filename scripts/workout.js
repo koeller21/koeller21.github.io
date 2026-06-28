@@ -104,12 +104,34 @@ function saveEntry(i){
     save(); render(); closeOv();
 }
 
+function e1rm(w, reps){ return w * (1 + reps / 30); }   // Epley estimated 1-rep max
+
+function chartBlock(log){                                // tiny inline SVG: e1RM by session (no deps, themes via CSS vars)
+    if(log.length < 2) return '';
+    var W = 600, H = 160, pad = 12, n = log.length;
+    var vals = log.map(function(e){ return e1rm(e.w, e.r[0]); });
+    var min = Math.min.apply(null, vals), max = Math.max.apply(null, vals), range = max - min;
+    var pts = vals.map(function(v, k){
+        var x = pad + k * (W - 2 * pad) / (n - 1);
+        var y = range ? pad + (1 - (v - min) / range) * (H - 2 * pad) : H / 2;
+        return x.toFixed(1) + ',' + y.toFixed(1);
+    });
+    var last = pts[n - 1].split(',');
+    return '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="estimated 1RM by session">'
+        + '<polyline vector-effect="non-scaling-stroke" points="' + pts.join(' ') + '"/>'
+        + '<circle cx="' + last[0] + '" cy="' + last[1] + '" r="4"/></svg>'
+        + '<p class="cap">e1RM = estimated 1-rep max (Epley: kg × (1 + reps ÷ 30), from set 1). '
+        + 'Each point is one session, oldest to newest; it rises whether you add weight or reps. '
+        + 'Latest ' + Math.round(vals[n - 1]) + ' kg, best ' + Math.round(max) + ' kg.</p>';
+}
+
 function openLog(i){
     var ex = data[i], log = ex.log;
     var html = '<a href="#" data-act="close">close</a><h3>' + esc(ex.name) + '</h3>';
     if(!log.length){
         html += '<p>no entries yet</p>';
     }else{
+        html += chartBlock(log);
         html += '<table class="logt"><thead><tr><th>date</th><th>kg</th><th>reps</th><th></th></tr></thead><tbody>';
         for(var e=log.length-1; e>=0; e--){       // newest first
             html += '<tr><td>' + fmtDate(log[e].d) + '</td><td>' + log[e].w + '</td><td>' + log[e].r.join(',')

@@ -36,6 +36,12 @@ tr.h td{
 .logt{ margin-top:1rem; }
 .logt th, .logt td{ padding:.4rem 1.5rem .4rem 0; }
 
+/* e1RM mini-graph in the log overlay */
+.chart{ display:block; width:100%; max-width:560px; height:auto; margin:1rem 0 .4rem; }
+.chart polyline{ fill:none; stroke:var(--link); stroke-width:2; }
+.chart circle{ fill:var(--link); }
+.cap{ font-size:.85rem; color:var(--muted); margin-bottom:1rem; }
+
 /* subtle footer links */
 footer{ margin-top:3rem; font-size:.85rem; }
 footer a{ margin-right:1.5rem; color:var(--muted); }
