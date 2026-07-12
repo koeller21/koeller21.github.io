@@ -54,6 +54,11 @@ tr.h td{
 footer{ margin-top:3rem; font-size:.85rem; }
 footer a{ margin-right:1.5rem; color:var(--muted); }
 
+/* status line: calories & weight */
+#stat{ font-family:var(--mono); font-size:.9rem; margin-top:1rem; }
+.big{ font-family:var(--mono); font-size:1.15rem; margin:.6rem 0; }
+.over{ color:var(--danger); }
+
 /* fullscreen entry / log overlay */
 #ov{ position:fixed; top:0; right:0; bottom:0; left:0; background:var(--surface); z-index:9; padding:1.2rem; overflow:auto; -webkit-overflow-scrolling:touch; }
 #ov[hidden]{ display:none; }

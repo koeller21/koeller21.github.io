@@ -22,13 +22,16 @@ function DEFAULTS(){
     ].map(function(e){ e.log = []; return e; });
 }
 
-var data = [], rows, ov, sheet;
+var data = [], cal = {b:0, d:{}}, wt = [], rows, ov, sheet;   // cal: {b:budget, d:{date:[kcal,..]}}, wt: [{d,kg}]
 
 function loadData(){
     try { var d = JSON.parse(localStorage.getItem('wlog')); return Array.isArray(d) ? d : DEFAULTS(); }
     catch(e){ return DEFAULTS(); }                // corrupt storage -> fall back instead of bricking init
 }
 function save(){ localStorage.setItem('wlog', JSON.stringify(data)); }
+function jload(key, fb){ try{ var v = JSON.parse(localStorage.getItem(key)); return v && typeof v === 'object' ? v : fb; }catch(e){ return fb; } }
+function saveCal(){ localStorage.setItem('wcal', JSON.stringify(cal)); }
+function saveWt(){ localStorage.setItem('wwt', JSON.stringify(wt)); }
 function today(){ var d = new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }   // local date
 function fmtDate(d){ var p = d.split('-'); return p[2] + '.' + p[1] + '.' + p[0]; }   // ISO -> DD.MM.YYYY
 function esc(s){ return String(s).replace(/[&<>"]/g, function(c){
@@ -106,18 +109,18 @@ function e1rm(w, reps){ return w * (1 + reps / 30); }   // Epley estimated 1-rep
 
 function readout(e){ return e.w + ' kg × ' + e.r.join(',') + ' · e1RM ' + Math.round(e1rm(e.w, e.r[0])) + ' · ' + fmtDate(e.d); }
 
-// inline SVG chart: e1RM per session, clean-step gridlines, tap/drag to read any point. no deps.
+// generic inline SVG line chart over parallel date/value arrays. no deps.
 // built at device width (1 svg unit = 1px) so hairlines and 10px labels stay crisp on any screen.
-function chartBlock(log){
-    if(log.length < 2) return '';
+// wireChart() makes it interactive; pair it with a .readout line.
+function chartSvg(ds, vals){
+    if(vals.length < 2) return '';
     var W = Math.min(560, (window.innerWidth || 400) - 40), H = 190;
-    var T = 10, B = H - 24, L = 40, R = W - 10, n = log.length;
-    var vals = log.map(function(e){ return e1rm(e.w, e.r[0]); });
+    var T = 10, B = H - 24, L = 40, R = W - 10, n = vals.length;
     var min = Math.min.apply(null, vals), max = Math.max.apply(null, vals);
     if(min === max){ min -= 1; max += 1; }
     var yOf = function(v){ return (T + (1 - (v - min) / (max - min)) * (B - T)).toFixed(1); };
 
-    var step = Math.pow(10, Math.floor(Math.log(max - min) / Math.LN10));   // clean kg steps -> 2-5 gridlines
+    var step = Math.pow(10, Math.floor(Math.log(max - min) / Math.LN10));   // clean steps -> 2-5 gridlines
     if((max - min) / step >= 5) step *= 2; else if((max - min) / step < 2) step /= 2;
     var s = '';
     for(var v = Math.ceil(min / step) * step; v <= max + 1e-9; v += step)
@@ -128,17 +131,34 @@ function chartBlock(log){
     for(var k = 0; k < n; k++)
         pts.push((L + k * (R - L) / (n - 1)).toFixed(1) + ',' + yOf(vals[k]));
     var lp = pts[n - 1].split(',');
-    return '<svg class="chart" width="' + W + '" height="' + H + '" role="img" aria-label="e1RM per session">'
+    return '<svg class="chart" width="' + W + '" height="' + H + '" role="img" aria-label="trend">'
         + s
         + '<line class="grid" x1="' + L + '" y1="' + B + '" x2="' + R + '" y2="' + B + '"/>'
-        + '<text class="tick" x="' + L + '" y="' + (H - 6) + '">' + fmtDate(log[0].d) + '</text>'
-        + '<text class="tick" x="' + R + '" y="' + (H - 6) + '" text-anchor="end">' + fmtDate(log[n - 1].d) + '</text>'
+        + '<text class="tick" x="' + L + '" y="' + (H - 6) + '">' + fmtDate(ds[0]) + '</text>'
+        + '<text class="tick" x="' + R + '" y="' + (H - 6) + '" text-anchor="end">' + fmtDate(ds[n - 1]) + '</text>'
         + '<line class="xh" x1="' + lp[0] + '" y1="' + T + '" x2="' + lp[0] + '" y2="' + B + '"/>'
         + '<polyline points="' + pts.join(' ') + '"/>'
         + '<circle class="sel" cx="' + lp[0] + '" cy="' + lp[1] + '" r="4"/>'
-        + '</svg>'
-        + '<p class="readout">' + readout(log[n - 1]) + '</p>'
-        + '<p class="cap">e1RM = kg × (1 + reps ÷ 30), estimated single-rep max</p>';
+        + '</svg>';
+}
+
+// tap or drag on the sheet's chart -> fmt(k) into its .readout line
+function wireChart(fmt){
+    var svg = sheet.querySelector('.chart'), ro = sheet.querySelector('.readout');
+    if(!svg || !ro) return;
+    var P = svg.querySelector('polyline').getAttribute('points').split(' ').map(function(p){ return p.split(','); });
+    var xh = svg.querySelector('.xh'), dot = svg.querySelector('.sel');
+    var pick = function(ev){
+        if(ev.type === 'pointermove' && !ev.buttons) return;
+        var f = (ev.clientX - svg.getBoundingClientRect().left - P[0][0]) / (P[P.length - 1][0] - P[0][0]);
+        var k = Math.max(0, Math.min(P.length - 1, Math.round(f * (P.length - 1))));
+        xh.setAttribute('x1', P[k][0]); xh.setAttribute('x2', P[k][0]);
+        dot.setAttribute('cx', P[k][0]); dot.setAttribute('cy', P[k][1]);
+        ro.textContent = fmt(k);
+        ev.preventDefault();
+    };
+    svg.addEventListener('pointerdown', pick);
+    svg.addEventListener('pointermove', pick);
 }
 
 function openLog(i){
@@ -147,7 +167,11 @@ function openLog(i){
     if(!log.length){
         html += '<p>no entries yet</p>';
     }else{
-        html += chartBlock(log);
+        var ds = [], vs = [], k;
+        for(k = 0; k < log.length; k++){ ds.push(log[k].d); vs.push(e1rm(log[k].w, log[k].r[0])); }
+        var c = chartSvg(ds, vs);
+        if(c) html += c + '<p class="readout">' + readout(log[log.length - 1]) + '</p>'
+            + '<p class="cap">e1RM = kg × (1 + reps ÷ 30), estimated single-rep max</p>';
         html += '<table class="logt"><thead><tr><th>date</th><th>kg</th><th>reps</th><th></th></tr></thead><tbody>';
         for(var e=log.length-1; e>=0; e--){       // newest first
             html += '<tr><td>' + fmtDate(log[e].d) + '</td><td>' + log[e].w + '</td><td>' + log[e].r.join(',')
@@ -157,29 +181,100 @@ function openLog(i){
     }
     sheet.innerHTML = html;
     ov.hidden = false;
-
-    var svg = sheet.querySelector('.chart');      // tap or drag on the chart to read a session
-    if(svg){
-        var P = svg.querySelector('polyline').getAttribute('points').split(' ').map(function(p){ return p.split(','); });
-        var xh = svg.querySelector('.xh'), dot = svg.querySelector('.sel'), ro = sheet.querySelector('.readout');
-        var pick = function(ev){
-            if(ev.type === 'pointermove' && !ev.buttons) return;
-            var f = (ev.clientX - svg.getBoundingClientRect().left - P[0][0]) / (P[P.length - 1][0] - P[0][0]);
-            var k = Math.max(0, Math.min(P.length - 1, Math.round(f * (P.length - 1))));
-            xh.setAttribute('x1', P[k][0]); xh.setAttribute('x2', P[k][0]);
-            dot.setAttribute('cx', P[k][0]); dot.setAttribute('cy', P[k][1]);
-            ro.textContent = readout(log[k]);
-            ev.preventDefault();
-        };
-        svg.addEventListener('pointerdown', pick);
-        svg.addEventListener('pointermove', pick);
-    }
+    wireChart(function(k){ return readout(log[k]); });
 }
 
 function delEntry(i, e){
     data[i].log.splice(e, 1);
     save(); render();
     openLog(i);                                   // exercise index unchanged by a log splice
+}
+
+function calSum(arr){ var s = 0; for(var k = 0; k < arr.length; k++) s += arr[k]; return s; }
+
+function renderStat(){                            // status line: today's kcal vs budget + latest weight
+    var sum = calSum(cal.d[today()] || []);
+    var kc = document.getElementById('kc'), kw = document.getElementById('kw');
+    kc.textContent = sum + (cal.b ? '/' + cal.b : '') + ' kcal';
+    kc.className = cal.b && sum > cal.b ? 'over' : '';
+    kw.textContent = (wt.length ? wt[wt.length - 1].kg : '-') + ' kg';
+}
+
+function openCal(skipFocus){
+    var t = cal.d[today()] || [], sum = calSum(t), k;
+    var big = sum + (cal.b ? ' / ' + cal.b + ' · ' + (sum <= cal.b ? (cal.b - sum) + ' left' : (sum - cal.b) + ' over') : '');
+    var rows = '';
+    for(k = t.length - 1; k >= 0; k--)
+        rows += '<tr><td>' + t[k] + '</td><td><a href="#" data-act="cdel" data-e="' + k + '">delete</a></td></tr>';
+    var ds = Object.keys(cal.d).sort(), vs = [];  // one point per logged day
+    for(k = 0; k < ds.length; k++) vs.push(calSum(cal.d[ds[k]]));
+    var c = chartSvg(ds, vs);
+    sheet.innerHTML =
+        '<a href="#" data-act="close">close</a>'
+        + '<h3>calories</h3>'
+        + '<p class="big' + (cal.b && sum > cal.b ? ' over' : '') + '">' + big + '</p>'
+        + '<label>add kcal<input id="cv" type="text" inputmode="numeric"></label>'
+        + '<label>daily budget<input id="cb" type="text" inputmode="numeric" value="' + (cal.b || '') + '"></label>'
+        + '<button data-act="calsave">save</button>'
+        + (rows ? '<table class="logt"><thead><tr><th>today</th><th></th></tr></thead><tbody>' + rows + '</tbody></table>' : '')
+        + (c ? c + '<p class="readout">' + vs[vs.length - 1] + ' kcal · ' + fmtDate(ds[ds.length - 1]) + '</p>' : '');
+    ov.hidden = false;
+    wireChart(function(k){ return vs[k] + ' kcal · ' + fmtDate(ds[k]); });
+    if(!skipFocus) document.getElementById('cv').focus();
+}
+
+function addCal(){
+    var v = parseInt(document.getElementById('cv').value, 10);
+    var b = parseInt(document.getElementById('cb').value, 10);
+    cal.b = isNaN(b) || b < 0 ? 0 : b;
+    if(!isNaN(v) && v > 0){
+        var key = today();
+        (cal.d[key] = cal.d[key] || []).push(v);
+    }
+    saveCal(); renderStat(); closeOv();
+}
+
+function delCal(e){
+    var key = today(), t = cal.d[key];
+    if(!t) return;
+    t.splice(e, 1);
+    if(!t.length) delete cal.d[key];
+    saveCal(); renderStat(); openCal(true);
+}
+
+function openWt(skipFocus){
+    var last = wt.length ? wt[wt.length - 1] : null, k;
+    var rows = '';
+    for(k = wt.length - 1; k >= 0; k--)
+        rows += '<tr><td>' + fmtDate(wt[k].d) + '</td><td>' + wt[k].kg + '</td><td><a href="#" data-act="wdel" data-e="' + k + '">delete</a></td></tr>';
+    var ds = [], vs = [];
+    for(k = 0; k < wt.length; k++){ ds.push(wt[k].d); vs.push(wt[k].kg); }
+    var c = chartSvg(ds, vs);
+    sheet.innerHTML =
+        '<a href="#" data-act="close">close</a>'
+        + '<h3>weight</h3>'
+        + '<label>kg<input id="wv" type="text" inputmode="decimal" value="' + (last ? last.kg : '') + '"></label>'
+        + '<button data-act="wtsave">save</button>'
+        + (c ? c + '<p class="readout">' + last.kg + ' kg · ' + fmtDate(last.d) + '</p>' : '')
+        + (rows ? '<table class="logt"><thead><tr><th>date</th><th>kg</th><th></th></tr></thead><tbody>' + rows + '</tbody></table>' : '');
+    ov.hidden = false;
+    wireChart(function(k){ return vs[k] + ' kg · ' + fmtDate(ds[k]); });
+    var inp = document.getElementById('wv');
+    if(!skipFocus){ inp.focus(); inp.select(); }
+}
+
+function addWt(){
+    var v = parseFloat(document.getElementById('wv').value.replace(',', '.'));
+    if(isNaN(v) || v <= 0) return;
+    var key = today(), last = wt.length ? wt[wt.length - 1] : null;
+    if(last && last.d === key) last.kg = v;       // one weigh-in per day: same-day save overwrites
+    else wt.push({d: key, kg: v});
+    saveWt(); renderStat(); closeOv();
+}
+
+function delWt(e){
+    wt.splice(e, 1);
+    saveWt(); renderStat(); openWt(true);
 }
 
 function openExercise(i){
@@ -255,7 +350,7 @@ function openAbout(){
 }
 
 function exportData(){
-    var blob = new Blob([localStorage.getItem('wlog') || '[]'], {type:'application/json'});
+    var blob = new Blob([JSON.stringify({ex: data, cal: cal, wt: wt})], {type:'application/json'});
     var url = URL.createObjectURL(blob);
     var a = document.createElement('a');
     a.href = url; a.download = 'workout.json';
@@ -267,20 +362,28 @@ function importData(file){
     var reader = new FileReader();
     reader.onload = function(){
         try {
-            var arr = JSON.parse(reader.result);
+            var raw = JSON.parse(reader.result);
+            var pack = Array.isArray(raw) ? {ex: raw} : raw;            // legacy export = bare exercise array
             var okEntry = function(s){                                  // a log entry: {d:string, w:number, r:[number,number]}
                 return s && typeof s.d === 'string' && typeof s.w === 'number'
                     && Array.isArray(s.r) && s.r.length === 2 && typeof s.r[0] === 'number' && typeof s.r[1] === 'number';
             };
-            var ok = Array.isArray(arr) && arr.every(function(e){       // reject malformed files instead of crashing render()
+            var ok = pack && Array.isArray(pack.ex) && pack.ex.every(function(e){   // reject malformed files instead of crashing render()
                 return e && typeof e.name === 'string' && typeof e.grp === 'string'
                     && typeof e.min === 'number' && typeof e.max === 'number' && typeof e.inc === 'number'
                     && Array.isArray(e.log) && e.log.every(okEntry);
             });
             if(!ok) throw 0;
             if(data.length && !confirm('Replace your current exercises and history with this file?')) return;
-            localStorage.setItem('wlog', JSON.stringify(arr));
-            data = loadData(); render(); closeOv();
+            localStorage.setItem('wlog', JSON.stringify(pack.ex));
+            if(pack.cal && typeof pack.cal === 'object' && pack.cal.d && typeof pack.cal.d === 'object'
+                && Object.keys(pack.cal.d).every(function(k){ var a = pack.cal.d[k]; return Array.isArray(a) && a.every(function(x){ return typeof x === 'number'; }); })){
+                cal = {b: +pack.cal.b || 0, d: pack.cal.d}; saveCal();
+            }
+            if(Array.isArray(pack.wt) && pack.wt.every(function(e){ return e && typeof e.d === 'string' && typeof e.kg === 'number'; })){
+                wt = pack.wt; saveWt();
+            }
+            data = loadData(); render(); renderStat(); closeOv();
         } catch(e){ alert('could not import: not a valid workout file'); }
     };
     reader.readAsText(file);
@@ -291,8 +394,13 @@ document.addEventListener('DOMContentLoaded', function(){
     ov    = document.getElementById('ov');
     sheet = document.getElementById('sheet');
     data  = loadData();
+    cal = jload('wcal', {b:0, d:{}});
+    if(!cal.d || typeof cal.d !== 'object') cal = {b:0, d:{}};
+    cal.b = +cal.b || 0;
+    wt = jload('wwt', []);
+    if(!Array.isArray(wt)) wt = [];
     if(!localStorage.getItem('wlog')) save();     // persist defaults on first visit
-    render();
+    render(); renderStat();
 
     // one delegated listener for everything (survives re-render)
     document.addEventListener('click', function(e){
@@ -309,6 +417,12 @@ document.addEventListener('DOMContentLoaded', function(){
         else if(act === 'addex')   openExercise(-1);
         else if(act === 'saveex')  saveExercise(i);
         else if(act === 'delex')   delExercise(i);
+        else if(act === 'cal')     openCal();
+        else if(act === 'wt')      openWt();
+        else if(act === 'calsave') addCal();
+        else if(act === 'wtsave')  addWt();
+        else if(act === 'cdel')    delCal(parseInt(t.getAttribute('data-e'), 10));
+        else if(act === 'wdel')    delWt(parseInt(t.getAttribute('data-e'), 10));
         else if(act === 'about')   openAbout();
         else if(act === 'export')  exportData();
         else if(act === 'import')  document.getElementById('importfile').click();
