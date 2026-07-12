@@ -54,8 +54,19 @@ tr.h td{
 footer{ margin-top:3rem; font-size:.85rem; }
 footer a{ margin-right:1.5rem; color:var(--muted); }
 
-/* status line: calories & weight */
-#stat{ font-family:var(--mono); font-size:.9rem; margin-top:1rem; }
+/* status buttons: calories & weight (gov.uk style) */
+#stat{ margin-top:1rem; display:flex; gap:.75rem; }
+#stat button{
+    font-family:var(--mono); font-size:1rem; font-weight:bold;
+    color:#fff; background:#00703c;
+    border:2px solid transparent; box-shadow:0 2px 0 #002d18;
+    padding:.5rem .9rem; cursor:pointer;
+}
+#stat button:hover{ background:#005a30; }
+#stat button:active{ box-shadow:none; transform:translateY(2px); }
+#stat button:focus-visible{ outline:3px solid #fd0; outline-offset:0; }
+#stat button.over{ background:#d4351c; box-shadow:0 2px 0 #55150b; }
+#stat button.over:hover{ background:#aa2a16; }
 .big{ font-family:var(--mono); font-size:1.15rem; margin:.6rem 0; }
 .over{ color:var(--danger); }
 

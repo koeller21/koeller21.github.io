@@ -10,7 +10,7 @@
 
 	<script>try{document.documentElement.dataset.theme=localStorage.getItem('wtheme')||'dark'}catch(e){}</script>
 	<!-- bump ?v= on functional changes so cached clients atomically pick up matching js+css -->
-	<link rel="stylesheet" href="../styles/workout.css?v=2">
+	<link rel="stylesheet" href="../styles/workout.css?v=3">
 	<link rel="icon" type="image/x-icon" href="../favicon.ico">
 </head>
 
@@ -18,7 +18,7 @@
 
 	<div class="container">
 		<a href="../index.html">back home</a>
-		<p id="stat"><a href="#" id="kc" data-act="cal">0 kcal</a> · <a href="#" id="kw" data-act="wt">- kg</a></p>
+		<p id="stat"><button id="kc" data-act="cal">0 kcal</button><button id="kw" data-act="wt">- kg</button></p>
 		<div class="scroll">
 			<table>
 				<thead><tr><th>exercise</th><th>now</th><th>next</th><th></th></tr></thead>
@@ -38,7 +38,7 @@
 
 	<div id="ov" hidden><div id="sheet"></div></div>
 
-	<script src="../scripts/workout.js?v=2"></script>
+	<script src="../scripts/workout.js?v=3"></script>
 
 </body>
 
