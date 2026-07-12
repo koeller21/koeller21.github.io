@@ -190,7 +190,9 @@ function delEntry(i, e){
     openLog(i);                                   // exercise index unchanged by a log splice
 }
 
-function calSum(arr){ var s = 0; for(var k = 0; k < arr.length; k++) s += arr[k]; return s; }
+function calV(x){ return typeof x === 'number' ? x : x.v; }          // cal entry = number | {v, n}
+function calN(x){ return typeof x === 'number' || !x.n ? '' : x.n; }
+function calSum(arr){ var s = 0; for(var k = 0; k < arr.length; k++) s += calV(arr[k]); return s; }
 
 function renderStat(){                            // status line: today's kcal vs budget + latest weight
     var sum = calSum(cal.d[today()] || []);
@@ -205,7 +207,7 @@ function openCal(skipFocus){
     var big = sum + (cal.b ? ' / ' + cal.b + ' · ' + (sum <= cal.b ? (cal.b - sum) + ' left' : (sum - cal.b) + ' over') : '');
     var rows = '';
     for(k = t.length - 1; k >= 0; k--)
-        rows += '<tr><td>' + t[k] + '</td><td><a href="#" data-act="cdel" data-e="' + k + '">delete</a></td></tr>';
+        rows += '<tr><td>' + calV(t[k]) + '</td><td>' + esc(calN(t[k])) + '</td><td><a href="#" data-act="cdel" data-e="' + k + '">delete</a></td></tr>';
     var ds = Object.keys(cal.d).sort(), vs = [];  // one point per logged day
     for(k = 0; k < ds.length; k++) vs.push(calSum(cal.d[ds[k]]));
     var c = chartSvg(ds, vs);
@@ -214,8 +216,9 @@ function openCal(skipFocus){
         + '<h3>calories</h3>'
         + '<p class="big' + (cal.b && sum > cal.b ? ' over' : '') + '">' + big + '</p>'
         + '<label>add kcal<input id="cv" type="text" inputmode="numeric"></label>'
+        + '<label>name (optional)<input id="cn" type="text" maxlength="24"></label>'
         + '<button data-act="calsave">add</button>'
-        + (rows ? '<table class="logt"><thead><tr><th>today</th><th></th></tr></thead><tbody>' + rows + '</tbody></table>' : '')
+        + (rows ? '<table class="logt"><thead><tr><th>today</th><th></th><th></th></tr></thead><tbody>' + rows + '</tbody></table>' : '')
         + (c ? c + '<p class="readout">' + vs[vs.length - 1] + ' kcal · ' + fmtDate(ds[ds.length - 1]) + '</p>' : '')
         + '<p class="cap">daily budget ' + (cal.b || 'not set') + ' · <a href="#" data-act="budget">change</a></p>';
     ov.hidden = false;
@@ -226,16 +229,26 @@ function openCal(skipFocus){
 function addCal(){
     var v = parseInt(document.getElementById('cv').value, 10);
     if(isNaN(v) || v <= 0) return;
+    var n = document.getElementById('cn').value.trim();
     var key = today();
-    (cal.d[key] = cal.d[key] || []).push(v);
+    (cal.d[key] = cal.d[key] || []).push(n ? {v: v, n: n} : v);   // unnamed entries stay plain numbers
     saveCal(); renderStat();
-    openCal();                                    // stay open: fresh input, keypad up, ready for the next item
+    openCal();                                    // stay open: fresh inputs, keypad up, ready for the next item
 }
 
-function setBudget(){                             // one-time setting, tucked behind a link
-    var b = prompt('daily kcal budget (0 = off)', cal.b || '');
-    if(b === null) return;
-    b = parseInt(b, 10);
+function openBudget(){                            // one-field editor (native prompt() gets suppressed on mobile)
+    sheet.innerHTML =
+        '<a href="#" data-act="close">close</a>'
+        + '<h3>daily budget</h3>'
+        + '<label>kcal (0 = off)<input id="cb" type="text" inputmode="numeric" value="' + (cal.b || '') + '"></label>'
+        + '<button data-act="budgetsave">save</button>';
+    ov.hidden = false;
+    var inp = document.getElementById('cb');
+    inp.focus(); inp.select();
+}
+
+function saveBudget(){
+    var b = parseInt(document.getElementById('cb').value, 10);
     cal.b = isNaN(b) || b < 0 ? 0 : b;
     saveCal(); renderStat(); openCal(true);
 }
@@ -383,7 +396,8 @@ function importData(file){
             if(data.length && !confirm('Replace your current exercises and history with this file?')) return;
             localStorage.setItem('wlog', JSON.stringify(pack.ex));
             if(pack.cal && typeof pack.cal === 'object' && pack.cal.d && typeof pack.cal.d === 'object'
-                && Object.keys(pack.cal.d).every(function(k){ var a = pack.cal.d[k]; return Array.isArray(a) && a.every(function(x){ return typeof x === 'number'; }); })){
+                && Object.keys(pack.cal.d).every(function(k){ var a = pack.cal.d[k]; return Array.isArray(a) && a.every(function(x){
+                    return typeof x === 'number' || (x && typeof x.v === 'number' && (x.n === undefined || typeof x.n === 'string')); }); })){
                 cal = {b: +pack.cal.b || 0, d: pack.cal.d}; saveCal();
             }
             if(Array.isArray(pack.wt) && pack.wt.every(function(e){ return e && typeof e.d === 'string' && typeof e.kg === 'number'; })){
@@ -426,7 +440,8 @@ document.addEventListener('DOMContentLoaded', function(){
         else if(act === 'cal')     openCal();
         else if(act === 'wt')      openWt();
         else if(act === 'calsave') addCal();
-        else if(act === 'budget')  setBudget();
+        else if(act === 'budget')  openBudget();
+        else if(act === 'budgetsave') saveBudget();
         else if(act === 'wtsave')  addWt();
         else if(act === 'cdel')    delCal(parseInt(t.getAttribute('data-e'), 10));
         else if(act === 'wdel')    delWt(parseInt(t.getAttribute('data-e'), 10));
