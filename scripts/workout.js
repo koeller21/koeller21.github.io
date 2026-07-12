@@ -214,10 +214,10 @@ function openCal(skipFocus){
         + '<h3>calories</h3>'
         + '<p class="big' + (cal.b && sum > cal.b ? ' over' : '') + '">' + big + '</p>'
         + '<label>add kcal<input id="cv" type="text" inputmode="numeric"></label>'
-        + '<label>daily budget<input id="cb" type="text" inputmode="numeric" value="' + (cal.b || '') + '"></label>'
-        + '<button data-act="calsave">save</button>'
+        + '<button data-act="calsave">add</button>'
         + (rows ? '<table class="logt"><thead><tr><th>today</th><th></th></tr></thead><tbody>' + rows + '</tbody></table>' : '')
-        + (c ? c + '<p class="readout">' + vs[vs.length - 1] + ' kcal · ' + fmtDate(ds[ds.length - 1]) + '</p>' : '');
+        + (c ? c + '<p class="readout">' + vs[vs.length - 1] + ' kcal · ' + fmtDate(ds[ds.length - 1]) + '</p>' : '')
+        + '<p class="cap">daily budget ' + (cal.b || 'not set') + ' · <a href="#" data-act="budget">change</a></p>';
     ov.hidden = false;
     wireChart(function(k){ return vs[k] + ' kcal · ' + fmtDate(ds[k]); });
     if(!skipFocus) document.getElementById('cv').focus();
@@ -225,13 +225,19 @@ function openCal(skipFocus){
 
 function addCal(){
     var v = parseInt(document.getElementById('cv').value, 10);
-    var b = parseInt(document.getElementById('cb').value, 10);
+    if(isNaN(v) || v <= 0) return;
+    var key = today();
+    (cal.d[key] = cal.d[key] || []).push(v);
+    saveCal(); renderStat();
+    openCal();                                    // stay open: fresh input, keypad up, ready for the next item
+}
+
+function setBudget(){                             // one-time setting, tucked behind a link
+    var b = prompt('daily kcal budget (0 = off)', cal.b || '');
+    if(b === null) return;
+    b = parseInt(b, 10);
     cal.b = isNaN(b) || b < 0 ? 0 : b;
-    if(!isNaN(v) && v > 0){
-        var key = today();
-        (cal.d[key] = cal.d[key] || []).push(v);
-    }
-    saveCal(); renderStat(); closeOv();
+    saveCal(); renderStat(); openCal(true);
 }
 
 function delCal(e){
@@ -420,6 +426,7 @@ document.addEventListener('DOMContentLoaded', function(){
         else if(act === 'cal')     openCal();
         else if(act === 'wt')      openWt();
         else if(act === 'calsave') addCal();
+        else if(act === 'budget')  setBudget();
         else if(act === 'wtsave')  addWt();
         else if(act === 'cdel')    delCal(parseInt(t.getAttribute('data-e'), 10));
         else if(act === 'wdel')    delWt(parseInt(t.getAttribute('data-e'), 10));
