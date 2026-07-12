@@ -32,15 +32,23 @@ tr.h td{
 }
 .tap{ cursor:pointer; color:var(--link); text-decoration:underline; }
 
+@media (max-width:480px){
+    td, th{ padding:.5rem .4rem; font-size:.9rem; }
+}
+
 /* log table inside the overlay */
 .logt{ margin-top:1rem; }
 .logt th, .logt td{ padding:.4rem 1.5rem .4rem 0; }
 
 /* e1RM mini-graph in the log overlay */
-.chart{ display:block; width:100%; max-width:560px; height:auto; margin:1rem 0 .4rem; }
-.chart polyline{ fill:none; stroke:var(--link); stroke-width:2; }
-.chart circle{ fill:var(--link); }
-.cap{ font-size:.85rem; color:var(--muted); margin-bottom:1rem; }
+.chart{ display:block; margin:1rem 0 .2rem; touch-action:none; -webkit-user-select:none; user-select:none; }
+.chart polyline{ fill:none; stroke:var(--link); stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+.chart .grid{ stroke:var(--line); }
+.chart .xh{ stroke:var(--muted); }
+.chart .tick{ fill:var(--muted); font:10px var(--mono); }
+.chart .sel{ fill:var(--link); stroke:var(--surface); stroke-width:2; }
+.readout{ font-family:var(--mono); font-size:.9rem; }
+.cap{ font-size:.8rem; color:var(--muted); margin-bottom:1rem; }
 
 /* subtle footer links */
 footer{ margin-top:3rem; font-size:.85rem; }

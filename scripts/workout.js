@@ -58,10 +58,8 @@ function rowHtml(ex, i){
     var next = computeNext(ex);
     return '<tr>'
         + '<td class="tap" data-act="editex" data-i="' + i + '">' + esc(ex.name) + '</td>'
-        + '<td class="tap" data-act="entry" data-i="' + i + '">' + (has ? cur.w : '-') + '</td>'
-        + '<td class="tap" data-act="entry" data-i="' + i + '">' + (has ? cur.r.join(',') : '-') + '</td>'
-        + '<td>' + (next.w == null ? '-' : next.w) + '</td>'
-        + '<td>' + (next.reps == null ? '-' : next.reps) + '</td>'
+        + '<td class="tap" data-act="entry" data-i="' + i + '">' + (has ? cur.w + '×' + cur.r.join(',') : '-') + '</td>'
+        + '<td>' + (next.w == null ? '-' : next.w + '×' + next.reps) + '</td>'
         + '<td><a href="#" data-act="log" data-i="' + i + '">log</a></td>'
         + '</tr>';
 }
@@ -71,7 +69,7 @@ function render(){
     for(i=0; i<data.length; i++)                  // groups in first-seen order
         if(groups.indexOf(data[i].grp) < 0) groups.push(data[i].grp);
     for(var g=0; g<groups.length; g++){
-        html += '<tr class="h"><td colspan="6">' + esc(groups[g]) + '</td></tr>';
+        html += '<tr class="h"><td colspan="4">' + esc(groups[g]) + '</td></tr>';
         for(i=0; i<data.length; i++)
             if(data[i].grp === groups[g]) html += rowHtml(data[i], i);
     }
@@ -106,23 +104,41 @@ function saveEntry(i){
 
 function e1rm(w, reps){ return w * (1 + reps / 30); }   // Epley estimated 1-rep max
 
-function chartBlock(log){                                // tiny inline SVG: e1RM by session (no deps, themes via CSS vars)
+function readout(e){ return e.w + ' kg × ' + e.r.join(',') + ' · e1RM ' + Math.round(e1rm(e.w, e.r[0])) + ' · ' + fmtDate(e.d); }
+
+// inline SVG chart: e1RM per session, clean-step gridlines, tap/drag to read any point. no deps.
+// built at device width (1 svg unit = 1px) so hairlines and 10px labels stay crisp on any screen.
+function chartBlock(log){
     if(log.length < 2) return '';
-    var W = 600, H = 160, pad = 12, n = log.length;
+    var W = Math.min(560, (window.innerWidth || 400) - 40), H = 190;
+    var T = 10, B = H - 24, L = 40, R = W - 10, n = log.length;
     var vals = log.map(function(e){ return e1rm(e.w, e.r[0]); });
-    var min = Math.min.apply(null, vals), max = Math.max.apply(null, vals), range = max - min;
-    var pts = vals.map(function(v, k){
-        var x = pad + k * (W - 2 * pad) / (n - 1);
-        var y = range ? pad + (1 - (v - min) / range) * (H - 2 * pad) : H / 2;
-        return x.toFixed(1) + ',' + y.toFixed(1);
-    });
-    var last = pts[n - 1].split(',');
-    return '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="estimated 1RM by session">'
-        + '<polyline vector-effect="non-scaling-stroke" points="' + pts.join(' ') + '"/>'
-        + '<circle cx="' + last[0] + '" cy="' + last[1] + '" r="4"/></svg>'
-        + '<p class="cap">e1RM = estimated 1-rep max (Epley: kg × (1 + reps ÷ 30), from set 1). '
-        + 'Each point is one session, oldest to newest; it rises whether you add weight or reps. '
-        + 'Latest ' + Math.round(vals[n - 1]) + ' kg, best ' + Math.round(max) + ' kg.</p>';
+    var min = Math.min.apply(null, vals), max = Math.max.apply(null, vals);
+    if(min === max){ min -= 1; max += 1; }
+    var yOf = function(v){ return (T + (1 - (v - min) / (max - min)) * (B - T)).toFixed(1); };
+
+    var step = Math.pow(10, Math.floor(Math.log(max - min) / Math.LN10));   // clean kg steps -> 2-5 gridlines
+    if((max - min) / step >= 5) step *= 2; else if((max - min) / step < 2) step /= 2;
+    var s = '';
+    for(var v = Math.ceil(min / step) * step; v <= max + 1e-9; v += step)
+        s += '<line class="grid" x1="' + L + '" y1="' + yOf(v) + '" x2="' + R + '" y2="' + yOf(v) + '"/>'
+           + '<text class="tick" x="' + (L - 8) + '" y="' + (+yOf(v) + 3) + '" text-anchor="end">' + Math.round(v * 100) / 100 + '</text>';
+
+    var pts = [];
+    for(var k = 0; k < n; k++)
+        pts.push((L + k * (R - L) / (n - 1)).toFixed(1) + ',' + yOf(vals[k]));
+    var lp = pts[n - 1].split(',');
+    return '<svg class="chart" width="' + W + '" height="' + H + '" role="img" aria-label="e1RM per session">'
+        + s
+        + '<line class="grid" x1="' + L + '" y1="' + B + '" x2="' + R + '" y2="' + B + '"/>'
+        + '<text class="tick" x="' + L + '" y="' + (H - 6) + '">' + fmtDate(log[0].d) + '</text>'
+        + '<text class="tick" x="' + R + '" y="' + (H - 6) + '" text-anchor="end">' + fmtDate(log[n - 1].d) + '</text>'
+        + '<line class="xh" x1="' + lp[0] + '" y1="' + T + '" x2="' + lp[0] + '" y2="' + B + '"/>'
+        + '<polyline points="' + pts.join(' ') + '"/>'
+        + '<circle class="sel" cx="' + lp[0] + '" cy="' + lp[1] + '" r="4"/>'
+        + '</svg>'
+        + '<p class="readout">' + readout(log[n - 1]) + '</p>'
+        + '<p class="cap">e1RM = kg × (1 + reps ÷ 30), estimated single-rep max</p>';
 }
 
 function openLog(i){
@@ -141,6 +157,23 @@ function openLog(i){
     }
     sheet.innerHTML = html;
     ov.hidden = false;
+
+    var svg = sheet.querySelector('.chart');      // tap or drag on the chart to read a session
+    if(svg){
+        var P = svg.querySelector('polyline').getAttribute('points').split(' ').map(function(p){ return p.split(','); });
+        var xh = svg.querySelector('.xh'), dot = svg.querySelector('.sel'), ro = sheet.querySelector('.readout');
+        var pick = function(ev){
+            if(ev.type === 'pointermove' && !ev.buttons) return;
+            var f = (ev.clientX - svg.getBoundingClientRect().left - P[0][0]) / (P[P.length - 1][0] - P[0][0]);
+            var k = Math.max(0, Math.min(P.length - 1, Math.round(f * (P.length - 1))));
+            xh.setAttribute('x1', P[k][0]); xh.setAttribute('x2', P[k][0]);
+            dot.setAttribute('cx', P[k][0]); dot.setAttribute('cy', P[k][1]);
+            ro.textContent = readout(log[k]);
+            ev.preventDefault();
+        };
+        svg.addEventListener('pointerdown', pick);
+        svg.addEventListener('pointermove', pick);
+    }
 }
 
 function delEntry(i, e){
