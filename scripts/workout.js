@@ -215,11 +215,12 @@ function openCal(skipFocus){
         '<a href="#" data-act="close">close</a>'
         + '<h3>calories</h3>'
         + '<p class="big' + (cal.b && sum > cal.b ? ' over' : '') + '">' + big + '</p>'
+        + (c ? c + '<p class="readout">' + vs[vs.length - 1] + ' kcal · ' + fmtDate(ds[ds.length - 1]) + '</p>'
+             : '<p class="cap">trend appears after two logged days</p>')
         + '<label>add kcal<input id="cv" type="text" inputmode="numeric"></label>'
         + '<label>name (optional)<input id="cn" type="text" maxlength="24"></label>'
         + '<button data-act="calsave">add</button>'
         + (rows ? '<table class="logt"><thead><tr><th>today</th><th></th><th></th></tr></thead><tbody>' + rows + '</tbody></table>' : '')
-        + (c ? c + '<p class="readout">' + vs[vs.length - 1] + ' kcal · ' + fmtDate(ds[ds.length - 1]) + '</p>' : '')
         + '<p class="cap">daily budget ' + (cal.b || 'not set') + ' · <a href="#" data-act="budget">change</a></p>';
     ov.hidden = false;
     wireChart(function(k){ return vs[k] + ' kcal · ' + fmtDate(ds[k]); });
@@ -272,9 +273,10 @@ function openWt(skipFocus){
     sheet.innerHTML =
         '<a href="#" data-act="close">close</a>'
         + '<h3>weight</h3>'
+        + (c ? c + '<p class="readout">' + last.kg + ' kg · ' + fmtDate(last.d) + '</p>'
+             : '<p class="cap">trend appears after two weigh-ins</p>')
         + '<label>kg<input id="wv" type="text" inputmode="decimal" value="' + (last ? last.kg : '') + '"></label>'
         + '<button data-act="wtsave">save</button>'
-        + (c ? c + '<p class="readout">' + last.kg + ' kg · ' + fmtDate(last.d) + '</p>' : '')
         + (rows ? '<table class="logt"><thead><tr><th>date</th><th>kg</th><th></th></tr></thead><tbody>' + rows + '</tbody></table>' : '');
     ov.hidden = false;
     wireChart(function(k){ return vs[k] + ' kg · ' + fmtDate(ds[k]); });
@@ -409,18 +411,29 @@ function importData(file){
     reader.readAsText(file);
 }
 
-document.addEventListener('DOMContentLoaded', function(){
-    rows  = document.getElementById('rows');
-    ov    = document.getElementById('ov');
-    sheet = document.getElementById('sheet');
-    data  = loadData();
+function reloadState(){                           // (re)hydrate from localStorage; safe to call anytime
+    data = loadData();
     cal = jload('wcal', {b:0, d:{}});
     if(!cal.d || typeof cal.d !== 'object') cal = {b:0, d:{}};
     cal.b = +cal.b || 0;
     wt = jload('wwt', []);
     if(!Array.isArray(wt)) wt = [];
-    if(!localStorage.getItem('wlog')) save();     // persist defaults on first visit
     render(); renderStat();
+}
+
+document.addEventListener('DOMContentLoaded', function(){
+    rows  = document.getElementById('rows');
+    ov    = document.getElementById('ov');
+    sheet = document.getElementById('sheet');
+    reloadState();
+    if(!localStorage.getItem('wlog')) save();     // persist defaults on first visit
+
+    // mobile browsers freeze tabs and restore them from bfcache with STALE in-memory
+    // state; a save from such a tab would clobber newer data (e.g. yesterday's log).
+    // rehydrate whenever the page resurfaces, and live-sync when another tab writes.
+    window.addEventListener('pageshow', function(e){ if(e.persisted) reloadState(); });
+    document.addEventListener('visibilitychange', function(){ if(!document.hidden) reloadState(); });
+    window.addEventListener('storage', reloadState);
 
     // one delegated listener for everything (survives re-render)
     document.addEventListener('click', function(e){
