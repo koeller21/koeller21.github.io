@@ -356,6 +356,12 @@ function toggleTheme(){
     var t = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
     document.documentElement.dataset.theme = t;
     localStorage.setItem('wtheme', t);
+    setThemeMeta();
+}
+
+function setThemeMeta(){                          // keep the browser/status-bar tint in step with the theme
+    var m = document.querySelector('meta[name="theme-color"]');
+    if(m) m.content = document.documentElement.dataset.theme === 'light' ? '#ffffff' : '#0d1117';
 }
 
 function openAbout(){
@@ -434,7 +440,10 @@ document.addEventListener('DOMContentLoaded', function(){
     ov    = document.getElementById('ov');
     sheet = document.getElementById('sheet');
     reloadState();
+    setThemeMeta();
     if(!localStorage.getItem('wlog')) save();     // persist defaults on first visit
+    if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');   // offline (pwa)
+    if(navigator.storage && navigator.storage.persist) navigator.storage.persist();   // ask not to evict localStorage
 
     // mobile browsers freeze tabs and restore them from bfcache with STALE in-memory
     // state; a save from such a tab would clobber newer data (e.g. yesterday's log).
