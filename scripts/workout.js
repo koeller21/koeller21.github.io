@@ -211,6 +211,11 @@ function openCal(skipFocus){
     var ds = Object.keys(cal.d).sort(), vs = [];  // one point per logged day
     for(k = 0; k < ds.length; k++) vs.push(calSum(cal.d[ds[k]]));
     var c = chartSvg(ds, vs);
+    var fmtDay = function(k){                     // scrub readout: the day's exact entries, not just the total
+        var e = cal.d[ds[k]], parts = [], j;
+        for(j = 0; j < e.length; j++) parts.push(calV(e[j]) + (calN(e[j]) ? ' ' + calN(e[j]) : ''));
+        return vs[k] + ' kcal · ' + fmtDate(ds[k]) + (parts.length > 1 ? ' · ' + parts.join(' + ') : '');
+    };
     sheet.innerHTML =
         '<a href="#" data-act="close">close</a>'
         + '<h3>calories</h3>'
@@ -218,11 +223,11 @@ function openCal(skipFocus){
         + '<label>add kcal<input id="cv" type="text" inputmode="numeric"></label>'
         + '<label>name (optional)<input id="cn" type="text" maxlength="24"></label>'
         + '<button data-act="calsave">add</button>'
-        + (c ? c + '<p class="readout">' + vs[vs.length - 1] + ' kcal · ' + fmtDate(ds[ds.length - 1]) + '</p>' : '')
+        + (c ? c + '<p class="readout">' + esc(fmtDay(ds.length - 1)) + '</p>' : '')
         + (rows ? '<table class="logt"><thead><tr><th>today</th><th></th><th></th></tr></thead><tbody>' + rows + '</tbody></table>' : '')
         + '<p class="cap">daily budget ' + (cal.b || 'not set') + ' · <a href="#" data-act="budget">change</a></p>';
     ov.hidden = false;
-    wireChart(function(k){ return vs[k] + ' kcal · ' + fmtDate(ds[k]); });
+    wireChart(fmtDay);
     if(!skipFocus) document.getElementById('cv').focus();
 }
 
