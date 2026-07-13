@@ -215,11 +215,10 @@ function openCal(skipFocus){
         '<a href="#" data-act="close">close</a>'
         + '<h3>calories</h3>'
         + '<p class="big' + (cal.b && sum > cal.b ? ' over' : '') + '">' + big + '</p>'
-        + (c ? c + '<p class="readout">' + vs[vs.length - 1] + ' kcal · ' + fmtDate(ds[ds.length - 1]) + '</p>'
-             : '<p class="cap">trend appears after two logged days</p>')
         + '<label>add kcal<input id="cv" type="text" inputmode="numeric"></label>'
         + '<label>name (optional)<input id="cn" type="text" maxlength="24"></label>'
         + '<button data-act="calsave">add</button>'
+        + (c ? c + '<p class="readout">' + vs[vs.length - 1] + ' kcal · ' + fmtDate(ds[ds.length - 1]) + '</p>' : '')
         + (rows ? '<table class="logt"><thead><tr><th>today</th><th></th><th></th></tr></thead><tbody>' + rows + '</tbody></table>' : '')
         + '<p class="cap">daily budget ' + (cal.b || 'not set') + ' · <a href="#" data-act="budget">change</a></p>';
     ov.hidden = false;
@@ -273,10 +272,9 @@ function openWt(skipFocus){
     sheet.innerHTML =
         '<a href="#" data-act="close">close</a>'
         + '<h3>weight</h3>'
-        + (c ? c + '<p class="readout">' + last.kg + ' kg · ' + fmtDate(last.d) + '</p>'
-             : '<p class="cap">trend appears after two weigh-ins</p>')
         + '<label>kg<input id="wv" type="text" inputmode="decimal" value="' + (last ? last.kg : '') + '"></label>'
         + '<button data-act="wtsave">save</button>'
+        + (c ? c + '<p class="readout">' + last.kg + ' kg · ' + fmtDate(last.d) + '</p>' : '')
         + (rows ? '<table class="logt"><thead><tr><th>date</th><th>kg</th><th></th></tr></thead><tbody>' + rows + '</tbody></table>' : '');
     ov.hidden = false;
     wireChart(function(k){ return vs[k] + ' kg · ' + fmtDate(ds[k]); });
