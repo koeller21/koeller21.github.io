@@ -203,18 +203,23 @@ function renderStat(){                            // status line: today's kcal v
 }
 
 function openCal(skipFocus){
-    var t = cal.d[today()] || [], sum = calSum(t), k;
+    var sum = calSum(cal.d[today()] || []), k;
     var big = sum + (cal.b ? ' / ' + cal.b + ' · ' + (sum <= cal.b ? (cal.b - sum) + ' left' : (sum - cal.b) + ' over') : '');
-    var rows = '';
-    for(k = t.length - 1; k >= 0; k--)
-        rows += '<tr><td>' + calV(t[k]) + '</td><td>' + esc(calN(t[k])) + '</td><td><a href="#" data-act="cdel" data-e="' + k + '">delete</a></td></tr>';
     var ds = Object.keys(cal.d).sort(), vs = [];  // one point per logged day
     for(k = 0; k < ds.length; k++) vs.push(calSum(cal.d[ds[k]]));
     var c = chartSvg(ds, vs);
-    var fmtDay = function(k){                     // scrub readout: the day's exact entries, not just the total
-        var e = cal.d[ds[k]], parts = [], j;
-        for(j = 0; j < e.length; j++) parts.push(calV(e[j]) + (calN(e[j]) ? ' ' + calN(e[j]) : ''));
-        return vs[k] + ' kcal · ' + fmtDate(ds[k]) + (parts.length > 1 ? ' · ' + parts.join(' + ') : '');
+    var rowsFor = function(day){                  // entries table for one day
+        var e = cal.d[day] || [], h = '', j;
+        for(j = e.length - 1; j >= 0; j--)
+            h += '<tr><td>' + calV(e[j]) + '</td><td>' + esc(calN(e[j])) + '</td><td><a href="#" data-act="cdel" data-d="' + day + '" data-e="' + j + '">delete</a></td></tr>';
+        return h;
+    };
+    var sel = ds.length ? ds[ds.length - 1] : today();   // most recent logged day
+    var rows = rowsFor(sel);
+    var fmtDay = function(k){                     // scrubbing the chart repopulates the table with that day
+        document.getElementById('cday').textContent = ds[k] === today() ? 'today' : fmtDate(ds[k]);
+        document.getElementById('crows').innerHTML = rowsFor(ds[k]);
+        return vs[k] + ' kcal · ' + fmtDate(ds[k]);
     };
     sheet.innerHTML =
         '<a href="#" data-act="close">close</a>'
@@ -223,8 +228,8 @@ function openCal(skipFocus){
         + '<label>add kcal<input id="cv" type="text" inputmode="numeric"></label>'
         + '<label>name (optional)<input id="cn" type="text" maxlength="24"></label>'
         + '<button data-act="calsave">add</button>'
-        + (c ? c + '<p class="readout">' + esc(fmtDay(ds.length - 1)) + '</p>' : '')
-        + (rows ? '<table class="logt"><thead><tr><th>today</th><th></th><th></th></tr></thead><tbody>' + rows + '</tbody></table>' : '')
+        + (c ? c + '<p class="readout">' + vs[vs.length - 1] + ' kcal · ' + fmtDate(ds[ds.length - 1]) + '</p>' : '')
+        + (rows ? '<table class="logt"><thead><tr><th id="cday">' + (sel === today() ? 'today' : fmtDate(sel)) + '</th><th></th><th></th></tr></thead><tbody id="crows">' + rows + '</tbody></table>' : '')
         + '<p class="cap">daily budget ' + (cal.b || 'not set') + ' · <a href="#" data-act="budget">change</a></p>';
     ov.hidden = false;
     wireChart(fmtDay);
@@ -258,11 +263,11 @@ function saveBudget(){
     saveCal(); renderStat(); openCal(true);
 }
 
-function delCal(e){
-    var key = today(), t = cal.d[key];
+function delCal(d, e){                            // d = day key (table can show any scrubbed day)
+    var t = cal.d[d];
     if(!t) return;
     t.splice(e, 1);
-    if(!t.length) delete cal.d[key];
+    if(!t.length) delete cal.d[d];
     saveCal(); renderStat(); openCal(true);
 }
 
@@ -459,7 +464,7 @@ document.addEventListener('DOMContentLoaded', function(){
         else if(act === 'budget')  openBudget();
         else if(act === 'budgetsave') saveBudget();
         else if(act === 'wtsave')  addWt();
-        else if(act === 'cdel')    delCal(parseInt(t.getAttribute('data-e'), 10));
+        else if(act === 'cdel')    delCal(t.getAttribute('data-d'), parseInt(t.getAttribute('data-e'), 10));
         else if(act === 'wdel')    delWt(parseInt(t.getAttribute('data-e'), 10));
         else if(act === 'about')   openAbout();
         else if(act === 'export')  exportData();
