@@ -4,7 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#ffffff">
-<title>sessions · mock</title>
+<title>workout</title>
+<script>try{document.documentElement.dataset.theme=localStorage.getItem('wtheme')||'light'}catch(e){}</script>
 <style>
 /* ============ tokens ============ */
 :root{
@@ -224,6 +225,14 @@ button, .row{ touch-action:manipulation; -webkit-user-select:none; user-select:n
 }
 .confirm:active{ transform:scale(.9); }
 .setrow.done .confirm{ background:var(--green); border-color:var(--green); color:#fff; }
+.addx{
+	display:block; width:100%; padding:13px 16px;
+	background:var(--card-bg); border-radius:var(--r-card);
+	box-shadow:0 0 0 .5px var(--hairline);
+	color:var(--label-2); font-size:16px; letter-spacing:-0.02em;
+	margin-bottom:14px;
+}
+.addx:active{ background:var(--fill-press); }
 
 /* ============ floating card (AirPods style) ============ */
 dialog.fcard{
@@ -262,6 +271,10 @@ dialog.fcard.closing::backdrop{ opacity:0; }
 .step{ display:flex; align-items:center; justify-content:center; gap:18px; margin:10px 0; }
 .step .val{ font-size:44px; line-height:1.1; font-weight:700; letter-spacing:-0.03em; min-width:150px; text-align:center; }
 .step .val small{ font-size:15px; font-weight:500; color:var(--label-2); letter-spacing:0; }
+.step input{
+	width:150px; font-size:34px; font-weight:700; text-align:center;
+	background:var(--fill); border:0; border-radius:12px; padding:6px 8px; color:var(--label); outline:none;
+}
 .sbtn{
 	width:54px; height:54px; border-radius:999px; flex-shrink:0;
 	background:var(--fill); color:var(--label);
@@ -279,14 +292,17 @@ dialog.fcard.closing::backdrop{ opacity:0; }
 }
 .cta:active{ transform:scale(.97); opacity:.85; }
 .cta.plain{ background:var(--fill); color:var(--label); }
+.cta.danger{ background:transparent; color:var(--red); min-height:44px; margin-top:6px; }
 
-/* list inside cards (kcal entries, history) */
+/* list inside cards (entries, history, settings) */
 .flist{ margin-top:12px; border-radius:12px; background:var(--fill); overflow:hidden; }
-.frow{ position:relative; display:flex; align-items:center; gap:10px; min-height:var(--row); padding:8px 14px; font-size:15px; letter-spacing:0; }
+.frow{ position:relative; display:flex; align-items:center; gap:10px; width:100%; min-height:var(--row); padding:8px 14px; font-size:15px; letter-spacing:0; }
 .frow + .frow::before{ content:""; position:absolute; top:0; left:14px; right:0; height:1px; background:var(--sep); transform:scaleY(.5); }
 .frow .sub{ color:var(--label-2); }
 .frow .end{ margin-left:auto; color:var(--label-2); }
 .frow .del{ color:var(--red); font-size:13px; }
+button.frow:active{ background:var(--fill-press); }
+.note{ font-size:13px; letter-spacing:0; color:var(--label-2); text-align:center; margin-top:12px; }
 
 /* progress cards */
 .pcard{ display:block; width:100%; padding:14px 16px 12px; }
@@ -305,7 +321,9 @@ dialog.fcard.closing::backdrop{ opacity:0; }
 .chart .grid{ stroke:var(--sep); }
 .chart .tick{ fill:var(--label-3); font:10px var(--font); letter-spacing:0; }
 .chart polyline{ fill:none; stroke:var(--tint); stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+.chart .xh{ stroke:var(--label-3); }
 .chart .sel{ fill:var(--tint); stroke:var(--base); stroke-width:2; }
+.readout{ font-size:14px; letter-spacing:0; color:var(--label-2); text-align:center; margin-top:6px; font-variant-numeric:tabular-nums; }
 
 /* misc */
 input.plain{
@@ -332,10 +350,9 @@ input.plain{
 	*, *::before, *::after{ transition-duration:.01ms !important; animation-duration:.01ms !important; }
 	.is-open #pane{ transform:none; border-radius:0; }
 	#drawer{ transform:none; }
-	#scrim{ transition:opacity 150ms linear; }
 }
 @media (hover:hover) and (pointer:fine){
-	.drow:hover, .pill:hover, .sbtn:hover{ background:var(--fill-press); }
+	.drow:hover, .pill:hover, .sbtn:hover, button.frow:hover{ background:var(--fill-press); }
 }
 </style>
 </head>
@@ -346,7 +363,7 @@ input.plain{
 	<div class="dhead">ROUTINES</div>
 	<div id="droutines"></div>
 	<div class="dhead">PROGRESS</div>
-	<div class="dscroll" id="dhistory"></div>
+	<div class="dscroll" id="dprogress"></div>
 	<div class="dfoot">
 		<button class="drow" data-act="settings">⚙&nbsp; Settings</button>
 		<button class="iconbtn" data-act="theme" aria-label="toggle theme">◐</button>
@@ -359,13 +376,13 @@ input.plain{
 			<svg width="20" height="20" viewBox="0 0 20 20"><path d="M3 6h14M3 12h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
 		</button>
 		<div class="pills">
-			<button class="pill fab num" id="pillCal" data-act="cal"><b>1840</b>/2400&nbsp;kcal</button>
-			<button class="pill fab num" id="pillWt" data-act="wt"><b>82.4</b>&nbsp;kg</button>
+			<button class="pill fab num" id="kc" data-act="cal"></button>
+			<button class="pill fab num" id="kw" data-act="wt"></button>
 		</div>
 	</header>
 	<main id="scroll">
-		<h1 class="lt" id="title">Push</h1>
-		<p class="subtitle" id="subtitle">due · last done 3 days ago</p>
+		<h1 class="lt" id="title"></h1>
+		<p class="subtitle" id="subtitle"></p>
 		<div id="cards"></div>
 	</main>
 	<div id="scrim" data-act="menu"></div>
@@ -375,97 +392,209 @@ input.plain{
 	<div class="dragzone" id="dragzone"><div class="grab"></div></div>
 	<div class="fbody" id="fbody"></div>
 </dialog>
+<input type="file" id="importfile" accept="application/json" hidden>
 
 <script>
-/* ================= mock state (fake, in-memory only) ================= */
-var routines = [
-	{name:'Push', last:'3 days ago', due:true, ex:[
-		{n:'Overhead Press',      w:52.5, reps:6,  inc:2.5,  last:'50×8 · 50×7'},
-		{n:'Incline Chest Press', w:60,   reps:7,  inc:2.5,  last:'60×6 · 60×6'},
-		{n:'Triceps Extension',   w:26.25,reps:8,  inc:1.25, last:'25×10 · 25×9'},
-		{n:'Lateral Raises',      w:12.5, reps:10, inc:1.25, last:'12.5×12 · 12.5×10'},
-		{n:'Abs',                 w:10,   reps:14, inc:1.25, last:'10×12 · 10×12'}
-	]},
-	{name:'Pull', last:'yesterday', ex:[
-		{n:'Lat Pulldown', w:75, reps:7, inc:2.5, last:'75×6 · 75×6'},
-		{n:'Seated Row',   w:65, reps:9, inc:2.5, last:'65×8 · 65×8'},
-		{n:'Deadlift',     w:120,reps:6, inc:2.5, last:'120×5 · 120×5'},
-		{n:'Biceps Curl',  w:16.25,reps:8,inc:1.25,last:'15×10 · 15×10'}
-	]},
-	{name:'Legs', last:'2 days ago', ex:[
-		{n:'Hack Squat',    w:105, reps:8,  inc:2.5,  last:'102.5×12 · 102.5×11'},
-		{n:'Leg Extension', w:41.25,reps:10,inc:1.25, last:'40×15 · 40×14'},
-		{n:'Leg Curl',      w:38.75,reps:8, inc:1.25, last:'37.5×10 · 37.5×9'}
-	]}
-];
-var sessionCounts = [12, 11, 10];          // fake: sessions ever logged per routine
-// fake e1RM series per exercise (upward with realistic wobble)
-routines.forEach(function(r, ri){
-	r.ex.forEach(function(x, xi){
-		var v = x.w * (1 + x.reps / 30) * 0.82, out = [];
-		for(var k = 0; k < 12; k++){
-			out.push(Math.round(v * 10) / 10);
-			v *= 1 + (0.012 + ((ri * 7 + xi * 13 + k * 3) % 10) / 400 - 0.008);
-		}
-		x.trend = out;
-	});
-});
-var cur = 0;                       // selected routine
-var done = {};                     // "ri:xi:si" -> {w, reps}
-var fcard = document.getElementById('fcard'), fbody = document.getElementById('fbody');
+/* =================================================================
+   state: single key "wapp"
+   { v:2, ex:[{name,min,max,inc}], routines:[{name,ex:[names]}],
+     sessions:[{d,r,sets:{name:{w,r:[s1,s2]}}}],   // r entries may be null = not logged
+     cal:{b,d:{date:[kcal|{v,n}]}}, wt:[{d,kg}] }
+   ================================================================= */
+var KEY = 'wapp', ADHOC = 'Ad-hoc';
+var S, view = {t:'session', r:null};
+var fcard, fbody, rows, titleEl, subEl;
 
-/* ================= rendering ================= */
+function DEFAULTS(){
+	return { v:2,
+		ex:[
+			{name:'Overhead Press',      min:6,  max:8,  inc:2.5},
+			{name:'Incline Chest Press', min:6,  max:8,  inc:2.5},
+			{name:'Triceps Extension',   min:8,  max:10, inc:1.25},
+			{name:'Lateral Raises',      min:10, max:12, inc:1.25},
+			{name:'Abs',                 min:12, max:20, inc:1.25},
+			{name:'Lat Pulldown',        min:6,  max:8,  inc:2.5},
+			{name:'Seated Row',          min:8,  max:10, inc:2.5},
+			{name:'Deadlift',            min:5,  max:8,  inc:2.5},
+			{name:'Biceps Curl',         min:8,  max:10, inc:1.25},
+			{name:'Hack Squat',          min:8,  max:12, inc:2.5},
+			{name:'Leg Extension',       min:10, max:15, inc:1.25},
+			{name:'Leg Curl',            min:8,  max:10, inc:1.25}
+		],
+		routines:[
+			{name:'Push', ex:['Overhead Press','Incline Chest Press','Triceps Extension','Lateral Raises','Abs']},
+			{name:'Pull', ex:['Lat Pulldown','Seated Row','Deadlift','Biceps Curl','Abs']},
+			{name:'Legs', ex:['Hack Squat','Leg Extension','Leg Curl']}
+		],
+		sessions:[], cal:{b:0, d:{}}, wt:[] };
+}
+
+/* old formats: wlog array of {name,grp,min,max,inc,log:[{d,w,r}]} (+ wcal/wwt) */
+function migrateOld(oldEx, oldCal, oldWt){
+	var st = DEFAULTS(); st.ex = []; st.routines = []; st.sessions = [];
+	var seen = {}, grps = {};
+	(oldEx || []).forEach(function(e){
+		if(!e || typeof e.name !== 'string') return;
+		if(!seen[e.name]){ seen[e.name] = 1; st.ex.push({name:e.name, min:+e.min||1, max:+e.max||10, inc:+e.inc||0}); }
+		var g = String(e.grp || 'Other'); g = g.charAt(0).toUpperCase() + g.slice(1).toLowerCase();
+		if(!grps[g]){ grps[g] = {name:g, ex:[]}; st.routines.push(grps[g]); }
+		if(grps[g].ex.indexOf(e.name) < 0) grps[g].ex.push(e.name);
+		(e.log || []).forEach(function(en){
+			if(!en || typeof en.d !== 'string' || typeof en.w !== 'number' || !Array.isArray(en.r)) return;
+			var sess = null;
+			for(var i = 0; i < st.sessions.length; i++)
+				if(st.sessions[i].d === en.d && st.sessions[i].r === g){ sess = st.sessions[i]; break; }
+			if(!sess){ sess = {d:en.d, r:g, sets:{}}; st.sessions.push(sess); }
+			sess.sets[e.name] = {w:en.w, r:[en.r[0] == null ? null : en.r[0], en.r[1] == null ? null : en.r[1]]};
+		});
+	});
+	if(oldCal && typeof oldCal === 'object' && oldCal.d) st.cal = {b:+oldCal.b || 0, d:oldCal.d};
+	if(Array.isArray(oldWt)) st.wt = oldWt;
+	st.sessions.sort(function(a, b){ return a.d < b.d ? -1 : 1; });
+	return st;
+}
+
+function validState(s){
+	return s && s.v === 2 && Array.isArray(s.ex) && Array.isArray(s.routines) && Array.isArray(s.sessions)
+		&& s.cal && typeof s.cal.d === 'object' && Array.isArray(s.wt);
+}
+function jparse(k){ try{ return JSON.parse(localStorage.getItem(k)); }catch(e){ return null; } }
+function load(){
+	var s = jparse(KEY);
+	if(validState(s)) return s;
+	var old = jparse('wlog');
+	if(Array.isArray(old)){
+		var st = migrateOld(old, jparse('wcal'), jparse('wwt'));
+		localStorage.setItem(KEY, JSON.stringify(st));
+		return st;
+	}
+	return DEFAULTS();
+}
+function save(){ localStorage.setItem(KEY, JSON.stringify(S)); }
+
+/* ================= helpers ================= */
 function esc(s){ return String(s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+function today(){ var d = new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+function fmtDate(d){ var p = d.split('-'); return p[2] + '.' + p[1] + '.' + p[0]; }
+function num(x){ return Math.round(x * 100) / 100; }
+function exByName(n){ for(var i = 0; i < S.ex.length; i++) if(S.ex[i].name === n) return S.ex[i]; return null; }
+function routineByName(n){ for(var i = 0; i < S.routines.length; i++) if(S.routines[i].name === n) return S.routines[i]; return null; }
 
-function renderDrawer(){
-	var h = '';
-	routines.forEach(function(r, i){
-		h += '<button class="drow' + (i === cur ? ' sel' : '') + '" data-act="routine" data-i="' + i + '">'
-		   + esc(r.name) + (r.due ? '<span class="due">DUE</span>' : '')
-		   + '<span class="sub">' + esc(r.last) + '</span></button>';
+function lastDone(rname){
+	var d = null;
+	S.sessions.forEach(function(s){ if(s.r === rname && (!d || s.d > d)) d = s.d; });
+	return d;
+}
+function daysAgoStr(d){
+	if(!d) return 'never';
+	var n = Math.round((new Date(today()) - new Date(d)) / 864e5);
+	return n <= 0 ? 'today' : n === 1 ? 'yesterday' : n + ' days ago';
+}
+function suggested(){
+	var best = null, bestD = null;
+	S.routines.forEach(function(r){
+		var d = lastDone(r.name) || '0000';
+		if(bestD === null || d < bestD){ bestD = d; best = r.name; }
 	});
-	document.getElementById('droutines').innerHTML = h;
-	h = '';
-	routines.forEach(function(r, i){
-		h += '<button class="drow" data-act="progress" data-i="' + i + '">' + esc(r.name)
-		   + '<span class="sub num">' + sessionCounts[i] + ' sessions</span></button>';
+	return best;
+}
+function sessCount(rname){ var n = 0; S.sessions.forEach(function(s){ if(s.r === rname) n++; }); return n; }
+function todaySession(rname){
+	for(var i = 0; i < S.sessions.length; i++)
+		if(S.sessions[i].d === today() && S.sessions[i].r === rname) return S.sessions[i];
+	return null;
+}
+function ensureSession(rname){
+	var s = todaySession(rname);
+	if(!s){ s = {d:today(), r:rname, sets:{}}; S.sessions.push(s); S.sessions.sort(function(a, b){ return a.d < b.d ? -1 : 1; }); }
+	return s;
+}
+function cleanupSession(s){
+	Object.keys(s.sets).forEach(function(n){
+		var e = s.sets[n];
+		if(e.r[0] == null && e.r[1] == null) delete s.sets[n];
 	});
-	document.getElementById('dhistory').innerHTML = h;
+	if(!Object.keys(s.sets).length){
+		var i = S.sessions.indexOf(s);
+		if(i >= 0) S.sessions.splice(i, 1);
+	}
 }
 
-function fmtVal(w, reps){
-	return '<span class="num">' + w + '</span><small> kg</small> <span class="num">× ' + reps + '</span>';
-}
-
-function renderSession(){
-	var r = routines[cur], h = '', total = 0, confirmed = 0;
-	r.ex.forEach(function(x, xi){
-		var rows = '';
-		for(var si = 0; si < 2; si++){
-			var key = cur + ':' + xi + ':' + si;
-			var d = done[key]; total++;
-			if(d) confirmed++;
-			rows += '<div class="setrow' + (d ? ' done' : '') + '">'
-			      + '<span class="setno num">' + (si + 1) + '</span>'
-			      + '<button class="setval" data-act="edit" data-x="' + xi + '" data-s="' + si + '">'
-			      + fmtVal(d ? d.w : x.w, d ? d.reps : x.reps) + '</button>'
-			      + '<button class="confirm" data-act="confirm" data-x="' + xi + '" data-s="' + si + '">✓</button>'
-			      + '</div>';
-		}
-		h += '<div class="xcard">'
-		   + '<button class="xhead" data-act="detail" data-x="' + xi + '">'
-		   + '<span class="xname">' + esc(x.n) + '</span>'
-		   + '<span class="xlast num">' + esc(x.last) + '</span><span class="chev">›</span></button>'
-		   + rows + '</div>';
+/* per-exercise history across all sessions; excludeToday keeps targets stable mid-day */
+function histFor(name, excludeToday){
+	var out = [];
+	S.sessions.forEach(function(s){
+		if(excludeToday && s.d === today()) return;
+		var e = s.sets[name];
+		if(e && e.r && e.r[0] != null) out.push({d:s.d, w:e.w, r:e.r});
 	});
-	document.getElementById('cards').innerHTML = h;
-	document.getElementById('title').innerHTML = esc(r.name) + (confirmed === total ? ' <span class="done">✓</span>' : '');
-	document.getElementById('subtitle').textContent = confirmed === total
-		? 'completed · ' + r.ex.length + ' exercises'
-		: (r.due ? 'due · ' : '') + 'last done ' + r.last;
+	return out;
 }
 
-/* axis-free sparkline for progress cards */
+/* double progression + deload; null = no suggestion (no history, or inc 0 = progression off) */
+function computeNext(def){
+	var hist = histFor(def.name, true);
+	if(!def.inc || !hist.length) return null;
+	var last = hist[hist.length - 1], s1 = last.r[0], s2 = last.r[1] == null ? 0 : last.r[1], w = last.w;
+	if(s1 >= def.max && s2 >= def.min) return {w:num(w + def.inc), reps:def.min};
+	if(s1 >= def.min) return {w:w, reps:Math.min(s1 + 1, def.max)};
+	var st = 0;
+	for(var i = hist.length - 1; i >= 0 && hist[i].r[0] < def.min; i--) st++;
+	if(st >= 3) return {w:Math.max(0, num(w - def.inc)), reps:def.min};
+	return {w:w, reps:def.min};
+}
+
+function e1rm(w, r){ return w * (1 + r / 30); }
+function calV(x){ return typeof x === 'number' ? x : x.v; }
+function calN(x){ return typeof x === 'number' || !x.n ? '' : x.n; }
+function calSum(a){ var s = 0; for(var k = 0; k < a.length; k++) s += calV(a[k]); return s; }
+
+/* ================= charts ================= */
+function chartSvg(ds, vals){
+	if(vals.length < 2) return '';
+	var W = Math.min(500, innerWidth - 72), H = 170;
+	var T = 8, B = H - 22, L = 38, R = W - 8, n = vals.length;
+	var min = Math.min.apply(null, vals), max = Math.max.apply(null, vals);
+	if(min === max){ min -= 1; max += 1; }
+	var yOf = function(v){ return (T + (1 - (v - min) / (max - min)) * (B - T)).toFixed(1); };
+	var step = Math.pow(10, Math.floor(Math.log(max - min) / Math.LN10));
+	if((max - min) / step >= 5) step *= 2; else if((max - min) / step < 2) step /= 2;
+	var s = '';
+	for(var v = Math.ceil(min / step) * step; v <= max + 1e-9; v += step)
+		s += '<line class="grid" x1="' + L + '" y1="' + yOf(v) + '" x2="' + R + '" y2="' + yOf(v) + '"/>'
+		   + '<text class="tick num" x="' + (L - 7) + '" y="' + (+yOf(v) + 3) + '" text-anchor="end">' + num(v) + '</text>';
+	var pts = [];
+	for(var k = 0; k < n; k++)
+		pts.push((L + k * (R - L) / (n - 1)).toFixed(1) + ',' + yOf(vals[k]));
+	var lp = pts[n - 1].split(',');
+	return '<svg class="chart" width="' + W + '" height="' + H + '">'
+		+ s
+		+ '<line class="grid" x1="' + L + '" y1="' + B + '" x2="' + R + '" y2="' + B + '"/>'
+		+ '<text class="tick" x="' + L + '" y="' + (H - 5) + '">' + fmtDate(ds[0]) + '</text>'
+		+ '<text class="tick" x="' + R + '" y="' + (H - 5) + '" text-anchor="end">' + fmtDate(ds[n - 1]) + '</text>'
+		+ '<line class="xh" x1="' + lp[0] + '" y1="' + T + '" x2="' + lp[0] + '" y2="' + B + '"/>'
+		+ '<polyline points="' + pts.join(' ') + '"/>'
+		+ '<circle class="sel" cx="' + lp[0] + '" cy="' + lp[1] + '" r="4"/>'
+		+ '</svg>';
+}
+/* tap/drag on the card's chart -> fmt(k) into its .readout */
+function wireChart(fmt){
+	var svg = fbody.querySelector('.chart'), ro = fbody.querySelector('.readout');
+	if(!svg || !ro) return;
+	var P = svg.querySelector('polyline').getAttribute('points').split(' ').map(function(p){ return p.split(','); });
+	var xh = svg.querySelector('.xh'), dot = svg.querySelector('.sel');
+	var pick = function(ev){
+		if(ev.type === 'pointermove' && !ev.buttons) return;
+		var f = (ev.clientX - svg.getBoundingClientRect().left - P[0][0]) / (P[P.length - 1][0] - P[0][0]);
+		var k = Math.max(0, Math.min(P.length - 1, Math.round(f * (P.length - 1))));
+		xh.setAttribute('x1', P[k][0]); xh.setAttribute('x2', P[k][0]);
+		dot.setAttribute('cx', P[k][0]); dot.setAttribute('cy', P[k][1]);
+		ro.textContent = fmt(k);
+		ev.stopPropagation();
+	};
+	svg.addEventListener('pointerdown', pick);
+	svg.addEventListener('pointermove', pick);
+}
 function sparkSvg(vals){
 	var W = Math.min(496, innerWidth - 64), H = 44, n = vals.length;
 	var min = Math.min.apply(null, vals), max = Math.max.apply(null, vals);
@@ -475,189 +604,127 @@ function sparkSvg(vals){
 		pts.push((3 + k * (W - 10) / (n - 1)).toFixed(1) + ',' + (4 + (1 - (vals[k] - min) / (max - min)) * (H - 8)).toFixed(1));
 	var lp = pts[n - 1].split(',');
 	return '<svg class="spark" width="' + W + '" height="' + H + '">'
-	     + '<polyline points="' + pts.join(' ') + '"/>'
-	     + '<circle cx="' + lp[0] + '" cy="' + lp[1] + '" r="3.5"/></svg>';
+		+ '<polyline points="' + pts.join(' ') + '"/>'
+		+ '<circle cx="' + lp[0] + '" cy="' + lp[1] + '" r="3.5"/></svg>';
 }
 
-function renderProgress(ri){
-	var r = routines[ri], h = '';
-	r.ex.forEach(function(x, xi){
-		var t = x.trend, now = t[t.length - 1], first = t[0];
-		var pct = Math.round((now / first - 1) * 100);
-		h += '<button class="xcard pcard" data-act="detail" data-x="' + xi + '">'
-		   + '<div class="phead"><span class="xname">' + esc(x.n) + '</span>'
-		   + '<span class="xlast num">now ' + x.w + '×' + x.reps + '</span></div>'
-		   + sparkSvg(t)
-		   + '<div class="pfoot"><span class="num">e1RM ' + Math.round(now) + ' kg</span>'
-		   + '<span class="delta num">' + (pct >= 0 ? '+' : '') + pct + '% · ' + t.length + ' wks</span></div>'
-		   + '</button>';
+/* ================= main pane rendering ================= */
+function renderStat(){
+	var t = S.cal.d[today()] || [], sum = calSum(t);
+	var kc = document.getElementById('kc'), kw = document.getElementById('kw');
+	kc.innerHTML = '<b>' + sum + '</b>' + (S.cal.b ? '/' + S.cal.b : '') + '&nbsp;kcal';
+	kc.classList.toggle('over', !!(S.cal.b && sum > S.cal.b));
+	kw.innerHTML = '<b>' + (S.wt.length ? S.wt[S.wt.length - 1].kg : '–') + '</b>&nbsp;kg';
+}
+
+function setValHtml(w, reps){
+	return '<span class="num">' + w + '</span><small> kg</small> <span class="num">× ' + reps + '</span>';
+}
+
+function renderSession(){
+	var rname = view.r, sess = todaySession(rname);
+	var routine = routineByName(rname);
+	var names = routine ? routine.ex.slice() : [];
+	if(sess) Object.keys(sess.sets).forEach(function(n){ if(names.indexOf(n) < 0) names.push(n); });
+
+	var html = '', total = 0, confirmed = 0;
+	names.forEach(function(n){
+		var def = exByName(n) || {name:n, min:1, max:99, inc:2.5};
+		var next = computeNext(def);
+		var entry = sess && sess.sets[n];
+		var hist = histFor(n, true);
+		var last = hist.length ? hist[hist.length - 1] : null;
+		var rowsH = '';
+		for(var si = 0; si < 2; si++){
+			var loggedReps = entry && entry.r[si] != null ? entry.r[si] : null;
+			total++;
+			if(loggedReps != null) confirmed++;
+			var valH = loggedReps != null ? setValHtml(entry.w, loggedReps)
+				: entry ? setValHtml(entry.w, next ? next.reps : def.min)   // sibling set logged: weight is shared
+				: next ? setValHtml(next.w, next.reps)
+				: '<span class="num">—</span>';
+			rowsH += '<div class="setrow' + (loggedReps != null ? ' done' : '') + '">'
+				+ '<span class="setno num">' + (si + 1) + '</span>'
+				+ '<button class="setval" data-act="edit" data-n="' + esc(n) + '" data-s="' + si + '">' + valH + '</button>'
+				+ '<button class="confirm" data-act="confirm" data-n="' + esc(n) + '" data-s="' + si + '">✓</button>'
+				+ '</div>';
+		}
+		html += '<div class="xcard">'
+			+ '<button class="xhead" data-act="detail" data-n="' + esc(n) + '">'
+			+ '<span class="xname">' + esc(n) + '</span>'
+			+ '<span class="xlast num">' + (last ? 'last ' + last.w + '×' + last.r[0] + (last.r[1] != null ? ',' + last.r[1] : '') : 'new') + '</span>'
+			+ '<span class="chev">›</span></button>'
+			+ rowsH + '</div>';
 	});
-	document.getElementById('cards').innerHTML = h;
-	document.getElementById('title').textContent = r.name;
-	document.getElementById('subtitle').textContent = sessionCounts[ri] + ' sessions · last done ' + r.last;
-	cur = ri;                                   // detail taps resolve against this routine
+	html += '<button class="addx" data-act="pickex">＋&nbsp; add exercise</button>';
+	rows.innerHTML = html;
+
+	var allDone = total > 0 && confirmed === total;
+	titleEl.innerHTML = esc(rname) + (allDone ? ' <span class="done">✓</span>' : '');
+	subEl.textContent = allDone
+		? 'completed · ' + names.length + ' exercise' + (names.length === 1 ? '' : 's')
+		: (rname === suggested() && lastDone(rname) !== today() ? 'due · ' : '') + 'last done ' + daysAgoStr(lastDone(rname));
 }
 
-/* tiny fake chart for detail/kcal/wt cards */
-function chartSvg(vals){
-	var W = Math.min(420, innerWidth - 88), H = 150, T = 8, B = H - 20, L = 34, R = W - 8, n = vals.length;
-	var min = Math.min.apply(null, vals), max = Math.max.apply(null, vals);
-	if(min === max){ min -= 1; max += 1; }
-	var pts = [];
-	for(var k = 0; k < n; k++)
-		pts.push((L + k * (R - L) / (n - 1)).toFixed(1) + ',' + (T + (1 - (vals[k] - min) / (max - min)) * (B - T)).toFixed(1));
-	var lp = pts[n - 1].split(',');
-	var mid = ((min + max) / 2).toFixed(0);
-	return '<svg class="chart" width="' + W + '" height="' + H + '">'
-	     + '<line class="grid" x1="' + L + '" y1="' + T + '" x2="' + R + '" y2="' + T + '"/>'
-	     + '<line class="grid" x1="' + L + '" y1="' + ((T + B) / 2) + '" x2="' + R + '" y2="' + ((T + B) / 2) + '"/>'
-	     + '<line class="grid" x1="' + L + '" y1="' + B + '" x2="' + R + '" y2="' + B + '"/>'
-	     + '<text class="tick num" x="' + (L - 6) + '" y="' + (T + 3) + '" text-anchor="end">' + max.toFixed(0) + '</text>'
-	     + '<text class="tick num" x="' + (L - 6) + '" y="' + ((T + B) / 2 + 3) + '" text-anchor="end">' + mid + '</text>'
-	     + '<text class="tick num" x="' + (L - 6) + '" y="' + (B + 3) + '" text-anchor="end">' + min.toFixed(0) + '</text>'
-	     + '<polyline points="' + pts.join(' ') + '"/>'
-	     + '<circle class="sel" cx="' + lp[0] + '" cy="' + lp[1] + '" r="4"/></svg>';
+function renderProgress(){
+	var rname = view.r, routine = routineByName(rname);
+	var names = routine ? routine.ex.slice() : [];
+	if(!routine) S.sessions.forEach(function(s){ if(s.r === rname) Object.keys(s.sets).forEach(function(n){ if(names.indexOf(n) < 0) names.push(n); }); });
+
+	var html = '';
+	names.forEach(function(n){
+		var hist = histFor(n, false);
+		var vals = hist.map(function(e){ return e1rm(e.w, e.r[0]); });
+		var lastE = hist.length ? hist[hist.length - 1] : null;
+		var body;
+		if(vals.length >= 2){
+			var pct = Math.round((vals[vals.length - 1] / vals[0] - 1) * 100);
+			body = sparkSvg(vals)
+				+ '<div class="pfoot"><span class="num">e1RM ' + Math.round(vals[vals.length - 1]) + ' kg</span>'
+				+ '<span class="delta num">' + (pct >= 0 ? '+' : '') + pct + '% · ' + vals.length + ' sessions</span></div>';
+		}else{
+			body = '<div class="pfoot"><span>' + (vals.length ? 'one session logged — trend soon' : 'nothing logged yet') + '</span></div>';
+		}
+		html += '<button class="xcard pcard" data-act="detail" data-n="' + esc(n) + '">'
+			+ '<div class="phead"><span class="xname">' + esc(n) + '</span>'
+			+ '<span class="xlast num">' + (lastE ? 'now ' + lastE.w + '×' + lastE.r[0] : '') + '</span></div>'
+			+ body + '</button>';
+	});
+	rows.innerHTML = html || '<p class="note">nothing here yet</p>';
+	titleEl.textContent = rname;
+	subEl.textContent = sessCount(rname) + ' sessions · last done ' + daysAgoStr(lastDone(rname));
 }
 
-/* ================= floating card variants ================= */
-var stepState = null;
-function openStepper(xi, si){
-	var x = routines[cur].ex[xi];
-	var key = cur + ':' + xi + ':' + si;
-	var d = done[key];
-	stepState = {xi: xi, si: si, w: d ? d.w : x.w, reps: d ? d.reps : x.reps, inc: x.inc};
-	fbody.innerHTML =
-		'<div class="ftitle">' + esc(x.n) + '</div>'
-		+ '<div class="fsub">set ' + (si + 1) + ' · target ' + x.w + ' kg × ' + x.reps + '</div>'
-		+ '<div class="step">'
-		+ '<button class="sbtn" data-act="st" data-f="w" data-d="-1">−</button>'
-		+ '<div class="val num" id="stw">' + stepState.w + '<small> kg</small></div>'
-		+ '<button class="sbtn" data-act="st" data-f="w" data-d="1">＋</button></div>'
-		+ '<div class="step">'
-		+ '<button class="sbtn" data-act="st" data-f="r" data-d="-1">−</button>'
-		+ '<div class="val num" id="str">' + stepState.reps + '<small> reps</small></div>'
-		+ '<button class="sbtn" data-act="st" data-f="r" data-d="1">＋</button></div>'
-		+ '<button class="cta" data-act="stsave">Log set</button>';
-	showCard();
+function renderDrawer(){
+	var sugg = suggested(), h = '';
+	S.routines.forEach(function(r, i){
+		h += '<button class="drow' + (view.t === 'session' && view.r === r.name ? ' sel' : '') + '" data-act="routine" data-n="' + esc(r.name) + '">'
+			+ esc(r.name) + (r.name === sugg && lastDone(r.name) !== today() ? '<span class="due">DUE</span>' : '')
+			+ '<span class="sub">' + daysAgoStr(lastDone(r.name)) + '</span></button>';
+	});
+	document.getElementById('droutines').innerHTML = h;
+	h = '';
+	S.routines.forEach(function(r){
+		h += '<button class="drow' + (view.t === 'progress' && view.r === r.name ? ' sel' : '') + '" data-act="progress" data-n="' + esc(r.name) + '">'
+			+ esc(r.name) + '<span class="sub num">' + sessCount(r.name) + ' sessions</span></button>';
+	});
+	if(sessCount(ADHOC))
+		h += '<button class="drow' + (view.t === 'progress' && view.r === ADHOC ? ' sel' : '') + '" data-act="progress" data-n="' + ADHOC + '">'
+			+ ADHOC + '<span class="sub num">' + sessCount(ADHOC) + ' sessions</span></button>';
+	document.getElementById('dprogress').innerHTML = h;
 }
 
-function openDetail(xi){
-	var x = routines[cur].ex[xi];
-	fbody.innerHTML =
-		'<div class="ftitle">' + esc(x.n) + '</div>'
-		+ '<div class="fsub">e1RM trend · last 12 sessions</div>'
-		+ chartSvg([56,57,58,58,60,59,61,62,62,63,63.5,65])
-		+ '<div class="flist">'
-		+ '<div class="frow"><span>Fri 11 Jul</span><span class="end num">50 × 8 · 50 × 7</span></div>'
-		+ '<div class="frow"><span>Tue 8 Jul</span><span class="end num">50 × 7 · 50 × 7</span></div>'
-		+ '<div class="frow"><span>Sat 5 Jul</span><span class="end num">50 × 6 · 50 × 6</span></div>'
-		+ '</div>'
-		+ '<button class="cta plain" data-act="close">Done</button>';
-	showCard();
+function render(){
+	if(view.t === 'session') renderSession(); else renderProgress();
+	renderDrawer(); renderStat();
 }
 
-function openCal(){
-	fbody.innerHTML =
-		'<div class="ftitle num">1840 / 2400</div>'
-		+ '<div class="fsub">560 kcal left today</div>'
-		+ '<input class="plain num" inputmode="numeric" placeholder="add kcal">'
-		+ '<input class="plain" placeholder="name (optional)">'
-		+ '<button class="cta" data-act="close">Add</button>'
-		+ '<div class="flist">'
-		+ '<div class="frow"><span class="num">840</span><span class="sub">lunch</span><button class="end del">delete</button></div>'
-		+ '<div class="frow"><span class="num">620</span><span class="sub">breakfast</span><button class="end del">delete</button></div>'
-		+ '<div class="frow"><span class="num">380</span><button class="end del">delete</button></div>'
-		+ '</div>'
-		+ chartSvg([2100, 1450, 1900, 2350, 1840, 2050, 1840]);
-	showCard();
-}
-
-function openWt(){
-	fbody.innerHTML =
-		'<div class="ftitle num">82.4 <small style="font-size:17px;color:var(--label-2)">kg</small></div>'
-		+ '<div class="fsub">−1.6 kg in 14 days</div>'
-		+ '<input class="plain num" inputmode="decimal" value="82.4">'
-		+ '<button class="cta" data-act="close">Save</button>'
-		+ chartSvg([84.0, 83.6, 83.9, 83.2, 82.8, 82.9, 82.4]);
-	showCard();
-}
-
-function openSettings(){
-	fbody.innerHTML =
-		'<div class="ftitle">Settings</div>'
-		+ '<div class="flist">'
-		+ '<button class="frow" data-act="theme"><span>Theme</span><span class="end" id="thlabel"></span></button>'
-		+ '<div class="frow"><span>Daily budget</span><span class="end num">2400 kcal</span></div>'
-		+ '<div class="frow"><span>Routines & exercises</span><span class="end">›</span></div>'
-		+ '<div class="frow"><span>Export</span><span class="end">›</span></div>'
-		+ '<div class="frow"><span>Import</span><span class="end">›</span></div>'
-		+ '</div>'
-		+ '<button class="cta plain" data-act="close">Done</button>';
-	showCard();
-	syncThemeLabel();
-}
-function syncThemeLabel(){
-	var el = document.getElementById('thlabel');
-	if(el) el.textContent = document.documentElement.dataset.theme === 'dark' ? 'Dark' : 'Light';
-}
-
-/* ================= interactions ================= */
-document.addEventListener('click', function(e){
-	var t = e.target.closest('[data-act]');
-	if(!t) return;
-	var act = t.getAttribute('data-act');
-	var xi = +t.getAttribute('data-x'), si = +t.getAttribute('data-s');
-
-	if(act === 'menu'){ document.documentElement.classList.toggle('is-open'); }
-	else if(act === 'routine'){
-		cur = +t.getAttribute('data-i');
-		renderDrawer(); renderSession();
-		document.documentElement.classList.remove('is-open');
-	}
-	else if(act === 'confirm'){
-		var key = cur + ':' + xi + ':' + si;
-		if(done[key]) delete done[key];
-		else { var x = routines[cur].ex[xi]; done[key] = {w: x.w, reps: x.reps}; }
-		renderSession();
-	}
-	else if(act === 'edit'){ openStepper(xi, si); }
-	else if(act === 'detail'){ openDetail(xi); }
-	else if(act === 'cal'){ openCal(); }
-	else if(act === 'wt'){ openWt(); }
-	else if(act === 'settings'){ document.documentElement.classList.remove('is-open'); openSettings(); }
-	else if(act === 'progress'){
-		renderProgress(+t.getAttribute('data-i'));
-		renderDrawer();
-		document.documentElement.classList.remove('is-open');
-	}
-	else if(act === 'adhoc'){ document.documentElement.classList.remove('is-open'); }
-	else if(act === 'theme'){
-		var next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
-		document.documentElement.dataset.theme = next;
-		document.querySelector('meta[name="theme-color"]').content = next === 'dark' ? '#0d0d0d' : '#ffffff';
-		syncThemeLabel();
-	}
-	else if(act === 'st'){
-		var f = t.getAttribute('data-f'), d = +t.getAttribute('data-d');
-		if(f === 'w'){ stepState.w = Math.max(0, Math.round((stepState.w + d * stepState.inc) * 100) / 100); document.getElementById('stw').innerHTML = stepState.w + '<small> kg</small>'; }
-		else { stepState.reps = Math.max(1, stepState.reps + d); document.getElementById('str').innerHTML = stepState.reps + '<small> reps</small>'; }
-	}
-	else if(act === 'stsave'){
-		done[cur + ':' + stepState.xi + ':' + stepState.si] = {w: stepState.w, reps: stepState.reps};
-		renderSession(); closeCard();
-	}
-	else if(act === 'close'){ closeCard(); }
-});
-
-/* open without stealing focus: showModal() focuses the first input, which pops the
-   keyboard on iOS before the user asked for it — blur it right back. */
+/* ================= floating cards ================= */
 function showCard(){
 	fcard.showModal();
 	var a = document.activeElement;
 	if(a && (a.tagName === 'INPUT' || a.tagName === 'BUTTON') && a.blur) a.blur();
 }
-
-/* animated close for every path; also drops the keyboard */
 function closeCard(){
 	if(!fcard.open || fcard.classList.contains('closing')) return;
 	var a = document.activeElement;
@@ -666,66 +733,563 @@ function closeCard(){
 	setTimeout(function(){ fcard.close(); fcard.classList.remove('closing'); fcard.style.transform = ''; }, 230);
 }
 
-/* tap on the backdrop closes the card (backdrop clicks target the dialog itself) */
-fcard.addEventListener('click', function(e){
-	if(e.target === fcard) closeCard();
-});
-
-/* drag-to-dismiss anywhere on the card (graph included). Interactive elements are
-   excluded; the body only yields the gesture when its scroller sits at the top. */
-(function(){
-	var fb = document.getElementById('fbody');
-	var y0 = null, lastY = 0, lastT = 0, v = 0, engaged = false, pid = null;
-	fcard.addEventListener('pointerdown', function(e){
-		if(e.target.closest('button, input, a')) return;
-		y0 = lastY = e.clientY; lastT = e.timeStamp; v = 0; engaged = false; pid = e.pointerId;
-	});
-	fcard.addEventListener('pointermove', function(e){
-		if(y0 === null || e.pointerId !== pid) return;
-		var dt = e.timeStamp - lastT;
-		if(dt > 0) v = (e.clientY - lastY) / dt;
-		lastY = e.clientY; lastT = e.timeStamp;
-		var dy = e.clientY - y0;
-		if(!engaged){
-			if(dy > 8 && fb.scrollTop <= 0){           // downward pull from the top -> take the gesture
-				engaged = true;
-				fcard.style.transition = 'none';
-				try{ fcard.setPointerCapture(pid); }catch(x){}
-				var a = document.activeElement;
-				if(a && a.blur) a.blur();                // swipe drops the keyboard
-			} else if(dy < -8){ y0 = null; return; }     // upward: it's a scroll, stand down
-		}
-		if(engaged) fcard.style.transform = 'translateY(' + (dy < 0 ? dy * 0.2 : dy) + 'px)';
-	});
-	function end(e){
-		if(y0 === null || e.pointerId !== pid) return;
-		var dy = lastY - y0;
-		fcard.style.transition = '';
-		fcard.style.transform = '';
-		if(engaged && (dy > fcard.getBoundingClientRect().height * 0.25 || v > 0.5)) closeCard();
-		y0 = null; engaged = false; pid = null;
-	}
-	fcard.addEventListener('pointerup', end);
-	fcard.addEventListener('pointercancel', end);
-})();
-
-/* keep the focused field visible above the iOS keyboard */
-fcard.addEventListener('focusin', function(e){
-	if(e.target && e.target.tagName === 'INPUT')
-		setTimeout(function(){ try{ e.target.scrollIntoView({block:'center', behavior:'smooth'}); }catch(x){} }, 300);
-});
-
-/* keyboard inset for the floating card (iOS) */
-if(window.visualViewport){
-	var vv = window.visualViewport;
-	var sync = function(){
-		var inset = innerHeight - vv.height - vv.offsetTop;
-		document.documentElement.style.setProperty('--kb', Math.max(0, inset) + 'px');
-	};
-	vv.addEventListener('resize', sync); vv.addEventListener('scroll', sync);
+var stepState = null;
+function openStepper(n, si){
+	var def = exByName(n) || {name:n, min:1, max:99, inc:2.5};
+	var sess = todaySession(view.r);
+	var entry = sess && sess.sets[n];
+	var next = computeNext(def);
+	var hist = histFor(n, true);
+	var w = entry ? entry.w : next ? next.w : hist.length ? hist[hist.length - 1].w : 20;
+	var reps = entry && entry.r[si] != null ? entry.r[si] : next ? next.reps : def.min;
+	stepState = {n:n, si:si, w:w, reps:reps, inc:def.inc || 2.5};
+	fbody.innerHTML =
+		'<div class="ftitle">' + esc(n) + '</div>'
+		+ '<div class="fsub">set ' + (si + 1) + (next ? ' · target ' + next.w + ' kg × ' + next.reps : '') + '</div>'
+		+ '<div class="step">'
+		+ '<button class="sbtn" data-act="st" data-f="w" data-d="-1">−</button>'
+		+ '<button class="val num" id="stw" data-act="typeval" data-f="w">' + stepState.w + '<small> kg</small></button>'
+		+ '<button class="sbtn" data-act="st" data-f="w" data-d="1">＋</button></div>'
+		+ '<div class="step">'
+		+ '<button class="sbtn" data-act="st" data-f="r" data-d="-1">−</button>'
+		+ '<button class="val num" id="str" data-act="typeval" data-f="r">' + stepState.reps + '<small> reps</small></button>'
+		+ '<button class="sbtn" data-act="st" data-f="r" data-d="1">＋</button></div>'
+		+ '<button class="cta" data-act="stsave">Log set</button>';
+	showCard();
+}
+function stepRefresh(){
+	var w = document.getElementById('stw'), r = document.getElementById('str');
+	if(w) w.innerHTML = stepState.w + '<small> kg</small>';
+	if(r) r.innerHTML = stepState.reps + '<small> reps</small>';
 }
 
-renderDrawer(); renderSession();
+function openDetail(n){
+	var def = exByName(n);
+	var hist = histFor(n, false);
+	var ds = hist.map(function(e){ return e.d; });
+	var vs = hist.map(function(e){ return e1rm(e.w, e.r[0]); });
+	var c = chartSvg(ds, vs);
+	var fmt = function(k){
+		var e = hist[k];
+		return e.w + ' kg × ' + e.r[0] + (e.r[1] != null ? ',' + e.r[1] : '') + ' · e1RM ' + Math.round(vs[k]) + ' · ' + fmtDate(e.d);
+	};
+	var rowsH = '';
+	for(var k = hist.length - 1; k >= 0; k--)
+		rowsH += '<div class="frow"><span>' + fmtDate(hist[k].d) + '</span>'
+			+ '<span class="num">' + hist[k].w + ' × ' + hist[k].r[0] + (hist[k].r[1] != null ? ',' + hist[k].r[1] : '') + '</span>'
+			+ '<button class="end del" data-act="hdel" data-n="' + esc(n) + '" data-d="' + hist[k].d + '">delete</button></div>';
+	fbody.innerHTML =
+		'<div class="ftitle">' + esc(n) + '</div>'
+		+ (def ? '<div class="fsub">' + def.min + '–' + def.max + ' reps · ' + (def.inc ? '+' + def.inc + ' kg' : 'progression off') + '</div>' : '')
+		+ (c ? c + '<p class="readout">' + esc(fmt(hist.length - 1)) + '</p>' : '')
+		+ (rowsH ? '<div class="flist">' + rowsH + '</div>' : '<p class="note">nothing logged yet</p>')
+		+ (def ? '<button class="cta plain" data-act="exedit" data-n="' + esc(n) + '">Edit exercise</button>' : '');
+	showCard();
+	wireChart(fmt);
+}
+
+function openCal(){
+	var t = S.cal.d[today()] || [], sum = calSum(t), b = S.cal.b, k;
+	var big = sum + (b ? ' / ' + b : '');
+	var subT = b ? (sum <= b ? (b - sum) + ' kcal left today' : (sum - b) + ' kcal over budget') : 'kcal today';
+	var rowsH = '';
+	for(k = t.length - 1; k >= 0; k--)
+		rowsH += '<div class="frow"><span class="num">' + calV(t[k]) + '</span><span class="sub">' + esc(calN(t[k])) + '</span>'
+			+ '<button class="end del" data-act="cdel" data-e="' + k + '">delete</button></div>';
+	var ds = Object.keys(S.cal.d).sort(), vs = [];
+	for(k = 0; k < ds.length; k++) vs.push(calSum(S.cal.d[ds[k]]));
+	var c = chartSvg(ds, vs);
+	var fmt = function(k2){
+		var e = S.cal.d[ds[k2]], parts = [], j;
+		for(j = 0; j < e.length; j++) parts.push(calV(e[j]) + (calN(e[j]) ? ' ' + calN(e[j]) : ''));
+		return vs[k2] + ' kcal · ' + fmtDate(ds[k2]) + (parts.length > 1 ? ' · ' + parts.join(' + ') : '');
+	};
+	fbody.innerHTML =
+		'<div class="ftitle num' + (b && sum > b ? '' : '') + '">' + big + '</div>'
+		+ '<div class="fsub">' + subT + '</div>'
+		+ '<input class="plain num" id="cv" type="text" inputmode="numeric" placeholder="add kcal">'
+		+ '<input class="plain" id="cn" type="text" maxlength="24" placeholder="name (optional)">'
+		+ '<button class="cta" data-act="calsave">Add</button>'
+		+ (rowsH ? '<div class="flist">' + rowsH + '</div>' : '')
+		+ (c ? c + '<p class="readout">' + esc(fmt(ds.length - 1)) + '</p>' : '')
+		+ '<p class="note">daily budget ' + (b || 'not set') + ' · <a href="#" data-act="budget" style="color:inherit">change</a></p>';
+	showCard();
+	wireChart(fmt);
+}
+
+function openBudget(){
+	fbody.innerHTML =
+		'<div class="ftitle">Daily budget</div>'
+		+ '<div class="fsub">0 = off</div>'
+		+ '<input class="plain num" id="cb" type="text" inputmode="numeric" value="' + (S.cal.b || '') + '">'
+		+ '<button class="cta" data-act="budgetsave">Save</button>';
+	showCard();
+}
+
+function openWt(){
+	var last = S.wt.length ? S.wt[S.wt.length - 1] : null, k;
+	var ds = S.wt.map(function(e){ return e.d; }), vs = S.wt.map(function(e){ return e.kg; });
+	var c = chartSvg(ds, vs);
+	var fmt = function(k2){ return vs[k2] + ' kg · ' + fmtDate(ds[k2]); };
+	var rowsH = '';
+	for(k = S.wt.length - 1; k >= 0; k--)
+		rowsH += '<div class="frow"><span>' + fmtDate(S.wt[k].d) + '</span><span class="num">' + S.wt[k].kg + ' kg</span>'
+			+ '<button class="end del" data-act="wdel" data-e="' + k + '">delete</button></div>';
+	fbody.innerHTML =
+		'<div class="ftitle num">' + (last ? last.kg : '–') + ' <small style="font-size:17px;color:var(--label-2)">kg</small></div>'
+		+ '<div class="fsub">' + (last ? 'last weigh-in ' + daysAgoStr(last.d) : 'no weigh-ins yet') + '</div>'
+		+ '<input class="plain num" id="wv" type="text" inputmode="decimal" value="' + (last ? last.kg : '') + '">'
+		+ '<button class="cta" data-act="wtsave">Save</button>'
+		+ (c ? c + '<p class="readout">' + esc(fmt(vs.length - 1)) + '</p>' : '')
+		+ (rowsH ? '<div class="flist">' + rowsH + '</div>' : '');
+	showCard();
+	wireChart(fmt);
+}
+
+function openPicker(){
+	var sess = todaySession(view.r);
+	var used = sess ? Object.keys(sess.sets) : [];
+	var routine = routineByName(view.r);
+	if(routine) used = used.concat(routine.ex);
+	var rowsH = '';
+	S.ex.forEach(function(e){
+		if(used.indexOf(e.name) >= 0) return;
+		rowsH += '<button class="frow" data-act="pick" data-n="' + esc(e.name) + '"><span>' + esc(e.name) + '</span>'
+			+ '<span class="end num">' + e.min + '–' + e.max + '</span></button>';
+	});
+	fbody.innerHTML =
+		'<div class="ftitle">Add exercise</div>'
+		+ '<div class="fsub">to today’s ' + esc(view.r) + '</div>'
+		+ (rowsH ? '<div class="flist">' + rowsH + '</div>' : '<p class="note">every exercise is already in this session</p>')
+		+ '<button class="cta plain" data-act="exedit" data-n="">＋ New exercise</button>';
+	showCard();
+}
+
+function openSettings(){
+	fbody.innerHTML =
+		'<div class="ftitle">Settings</div>'
+		+ '<div class="flist">'
+		+ '<button class="frow" data-act="theme"><span>Theme</span><span class="end" id="thlabel"></span></button>'
+		+ '<button class="frow" data-act="budget"><span>Daily kcal budget</span><span class="end num">' + (S.cal.b || 'off') + '</span></button>'
+		+ '<button class="frow" data-act="manager"><span>Exercises & routines</span><span class="end">›</span></button>'
+		+ '<button class="frow" data-act="export"><span>Export</span><span class="end">›</span></button>'
+		+ '<button class="frow" data-act="import"><span>Import</span><span class="end">replaces data</span></button>'
+		+ '<button class="frow" data-act="about"><span>Progression rules</span><span class="end">›</span></button>'
+		+ '</div>';
+	showCard();
+	syncThemeLabel();
+}
+function syncThemeLabel(){
+	var el = document.getElementById('thlabel');
+	if(el) el.textContent = document.documentElement.dataset.theme === 'dark' ? 'Dark' : 'Light';
+}
+
+function openManager(){
+	var rH = '';
+	S.routines.forEach(function(r, i){
+		rH += '<button class="frow" data-act="rtedit" data-i="' + i + '"><span>' + esc(r.name) + '</span>'
+			+ '<span class="end num">' + r.ex.length + ' exercises</span></button>';
+	});
+	var eH = '';
+	S.ex.forEach(function(e){
+		eH += '<button class="frow" data-act="exedit" data-n="' + esc(e.name) + '"><span>' + esc(e.name) + '</span>'
+			+ '<span class="end num">' + e.min + '–' + e.max + (e.inc ? ' · +' + e.inc : ' · off') + '</span></button>';
+	});
+	fbody.innerHTML =
+		'<div class="ftitle">Exercises & routines</div>'
+		+ '<div class="fsub">ROUTINES</div>'
+		+ '<div class="flist">' + rH + '<button class="frow" data-act="rtedit" data-i="-1"><span>＋ New routine</span></button></div>'
+		+ '<div class="fsub" style="margin-top:16px">EXERCISES</div>'
+		+ '<div class="flist">' + eH + '<button class="frow" data-act="exedit" data-n=""><span>＋ New exercise</span></button></div>';
+	showCard();
+}
+
+var editEx = null;   // original name being edited, '' = new
+function openExEdit(n){
+	editEx = n;
+	var e = n ? exByName(n) : {name:'', min:8, max:12, inc:2.5};
+	var checks = '';
+	S.routines.forEach(function(r, i){
+		var inR = n && r.ex.indexOf(n) >= 0;
+		checks += '<label class="frow"><span>' + esc(r.name) + '</span>'
+			+ '<input class="end" type="checkbox" data-rt="' + i + '"' + (inR ? ' checked' : '') + '></label>';
+	});
+	fbody.innerHTML =
+		'<div class="ftitle">' + (n ? 'Edit exercise' : 'New exercise') + '</div>'
+		+ '<input class="plain" id="xn" placeholder="name" value="' + esc(e.name) + '">'
+		+ '<div style="display:flex; gap:8px">'
+		+ '<input class="plain num" id="xmin" type="text" inputmode="numeric" placeholder="min reps" value="' + e.min + '">'
+		+ '<input class="plain num" id="xmax" type="text" inputmode="numeric" placeholder="max reps" value="' + e.max + '">'
+		+ '<input class="plain num" id="xinc" type="text" inputmode="decimal" placeholder="+kg" value="' + e.inc + '">'
+		+ '</div>'
+		+ '<div class="fsub" style="margin:14px 0 0">min · max · increment (0 = progression off)</div>'
+		+ '<div class="flist">' + checks + '</div>'
+		+ '<button class="cta" data-act="exsave">Save</button>'
+		+ (n ? '<button class="cta danger" data-act="exdel">Delete exercise</button>' : '');
+	showCard();
+}
+
+var editRt = -1;
+function openRtEdit(i){
+	editRt = i;
+	var r = i >= 0 ? S.routines[i] : {name:'', ex:[]};
+	var checks = '';
+	S.ex.forEach(function(e){
+		checks += '<label class="frow"><span>' + esc(e.name) + '</span>'
+			+ '<input class="end" type="checkbox" data-xn="' + esc(e.name) + '"' + (r.ex.indexOf(e.name) >= 0 ? ' checked' : '') + '></label>';
+	});
+	fbody.innerHTML =
+		'<div class="ftitle">' + (i >= 0 ? 'Edit routine' : 'New routine') + '</div>'
+		+ '<input class="plain" id="rn" placeholder="name" value="' + esc(r.name) + '">'
+		+ '<div class="flist">' + checks + '</div>'
+		+ '<button class="cta" data-act="rtsave">Save</button>'
+		+ (i >= 0 ? '<button class="cta danger" data-act="rtdel">Delete routine</button>' : '');
+	showCard();
+}
+
+function openAbout(){
+	fbody.innerHTML =
+		'<div class="ftitle">Progression rules</div>'
+		+ '<div class="fsub">two heavy sets · double progression</div>'
+		+ '<p style="font-size:15px; letter-spacing:0; color:var(--label-2); line-height:1.5">'
+		+ 'Each exercise has a rep range. The suggested target comes from your last session:<br><br>'
+		+ '<b style="color:var(--label)">add weight</b> — set 1 hit the top of the range and set 2 stayed in range: load +increment, reps reset to the bottom.<br>'
+		+ '<b style="color:var(--label)">hold</b> — set 1 in range but below the top: same load, one more rep.<br>'
+		+ '<b style="color:var(--label)">repeat</b> — set 1 under the range: same target again.<br>'
+		+ '<b style="color:var(--label)">deload</b> — three sessions in a row under the range: load −increment.<br><br>'
+		+ 'Increment 0 turns progression off — sets are just recorded.</p>';
+	showCard();
+}
+
+/* ================= data actions ================= */
+function confirmSet(n, si){
+	var def = exByName(n) || {name:n, min:1, max:99, inc:2.5};
+	var sess = todaySession(view.r);
+	var entry = sess && sess.sets[n];
+	if(entry && entry.r[si] != null){                    // un-log
+		entry.r[si] = null;
+		cleanupSession(sess);
+		save(); render();
+		return;
+	}
+	var next = computeNext(def);
+	if(!next && !entry){ openStepper(n, si); return; }   // baseline: needs a weight first
+	sess = ensureSession(view.r);
+	entry = sess.sets[n] || (sess.sets[n] = {w:(next ? next.w : 20), r:[null, null]});
+	if(entry.r[0] == null && entry.r[1] == null && next) entry.w = next.w;
+	entry.r[si] = next ? next.reps : def.min;
+	save(); render();
+}
+
+function logSet(){
+	var sess = ensureSession(view.r);
+	var entry = sess.sets[stepState.n] || (sess.sets[stepState.n] = {w:stepState.w, r:[null, null]});
+	entry.w = stepState.w;                               // one weight per exercise per session
+	entry.r[stepState.si] = stepState.reps;
+	save(); render(); closeCard();
+}
+
+function delHistEntry(n, d){
+	for(var i = 0; i < S.sessions.length; i++){
+		var s = S.sessions[i];
+		if(s.d === d && s.sets[n]){
+			delete s.sets[n];
+			if(!Object.keys(s.sets).length) S.sessions.splice(i, 1);
+			break;
+		}
+	}
+	save(); render(); openDetail(n);
+}
+
+function saveExercise(){
+	var name = document.getElementById('xn').value.trim();
+	var min = parseInt(document.getElementById('xmin').value, 10);
+	var max = parseInt(document.getElementById('xmax').value, 10);
+	var inc = parseFloat(String(document.getElementById('xinc').value).replace(',', '.'));
+	if(!name || isNaN(min) || isNaN(max) || min < 1 || min > max || isNaN(inc) || inc < 0) return;
+	if(!editEx && exByName(name)) return;                // no duplicate names
+	if(editEx && name !== editEx && exByName(name)) return;
+	var e;
+	if(editEx){
+		e = exByName(editEx);
+		if(name !== editEx){                              // rename everywhere
+			S.routines.forEach(function(r){ var k = r.ex.indexOf(editEx); if(k >= 0) r.ex[k] = name; });
+			S.sessions.forEach(function(s){ if(s.sets[editEx]){ s.sets[name] = s.sets[editEx]; delete s.sets[editEx]; } });
+		}
+		e.name = name; e.min = min; e.max = max; e.inc = inc;
+	}else{
+		e = {name:name, min:min, max:max, inc:inc};
+		S.ex.push(e);
+	}
+	var boxes = fbody.querySelectorAll('input[data-rt]');
+	for(var i = 0; i < boxes.length; i++){
+		var r = S.routines[+boxes[i].getAttribute('data-rt')];
+		var k = r.ex.indexOf(name);
+		if(boxes[i].checked && k < 0) r.ex.push(name);
+		if(!boxes[i].checked && k >= 0) r.ex.splice(k, 1);
+	}
+	save(); render(); openManager();
+}
+
+var armDel = null;   // two-tap delete (native confirm() is unreliable on mobile)
+function armOrRun(key, btn, fn){
+	if(armDel === key){ armDel = null; fn(); return; }
+	armDel = key;
+	btn.textContent = 'Tap again to delete';
+	setTimeout(function(){ if(armDel === key) armDel = null; }, 3000);
+}
+
+function deleteExercise(){
+	var n = editEx;
+	S.ex = S.ex.filter(function(e){ return e.name !== n; });
+	S.routines.forEach(function(r){ var k = r.ex.indexOf(n); if(k >= 0) r.ex.splice(k, 1); });
+	save(); render(); openManager();
+}
+
+function saveRoutine(){
+	var name = document.getElementById('rn').value.trim();
+	if(!name) return;
+	var clash = routineByName(name);
+	var r;
+	if(editRt >= 0){
+		r = S.routines[editRt];
+		if(clash && clash !== r) return;
+		if(name !== r.name){
+			S.sessions.forEach(function(s){ if(s.r === r.name) s.r = name; });
+			if(view.r === r.name) view.r = name;
+			r.name = name;
+		}
+	}else{
+		if(clash || name === ADHOC) return;
+		r = {name:name, ex:[]};
+		S.routines.push(r);
+	}
+	var boxes = fbody.querySelectorAll('input[data-xn]');
+	r.ex = [];
+	for(var i = 0; i < boxes.length; i++)
+		if(boxes[i].checked) r.ex.push(boxes[i].getAttribute('data-xn'));
+	save(); render(); openManager();
+}
+
+function deleteRoutine(){
+	var r = S.routines[editRt];
+	S.routines.splice(editRt, 1);
+	if(view.r === r.name){ view = {t:'session', r:suggested()}; }
+	save(); render(); openManager();
+}
+
+function exportData(){
+	var blob = new Blob([JSON.stringify(S)], {type:'application/json'});
+	var url = URL.createObjectURL(blob);
+	var a = document.createElement('a');
+	a.href = url; a.download = 'workout.json';
+	document.body.appendChild(a); a.click(); document.body.removeChild(a);
+	URL.revokeObjectURL(url);
+	closeCard();
+}
+
+function importData(file){
+	var reader = new FileReader();
+	reader.onload = function(){
+		try{
+			var p = JSON.parse(reader.result), st = null;
+			if(validState(p)) st = p;
+			else if(Array.isArray(p)) st = migrateOld(p, null, null);                 // legacy bare array
+			else if(p && Array.isArray(p.ex) && p.ex.length && p.ex[0].grp !== undefined)
+				st = migrateOld(p.ex, p.cal, p.wt);                                    // legacy {ex,cal,wt}
+			if(!st) throw 0;
+			S = st; save();
+			view = {t:'session', r:suggested()};
+			render(); closeCard();
+		}catch(e){ alert('could not import: not a valid workout file'); }
+	};
+	reader.readAsText(file);
+}
+
+/* ================= theme / sync / init ================= */
+function toggleTheme(){
+	var t = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
+	document.documentElement.dataset.theme = t;
+	try{ localStorage.setItem('wtheme', t); }catch(e){}
+	document.querySelector('meta[name="theme-color"]').content = t === 'dark' ? '#0d0d0d' : '#ffffff';
+	syncThemeLabel();
+}
+
+function reloadState(){                                  // rehydrate: frozen mobile tabs hold stale state
+	S = load();
+	if(view.t === 'session' && !routineByName(view.r) && view.r !== ADHOC) view.r = suggested();
+	render();
+}
+
+document.addEventListener('DOMContentLoaded', function(){
+	fcard = document.getElementById('fcard');
+	fbody = document.getElementById('fbody');
+	rows = document.getElementById('cards');
+	titleEl = document.getElementById('title');
+	subEl = document.getElementById('subtitle');
+
+	S = load();
+	if(!localStorage.getItem(KEY)) save();
+	view = {t:'session', r:suggested()};
+	document.querySelector('meta[name="theme-color"]').content =
+		document.documentElement.dataset.theme === 'dark' ? '#0d0d0d' : '#ffffff';
+	render();
+
+	window.addEventListener('pageshow', function(e){ if(e.persisted) reloadState(); });
+	document.addEventListener('visibilitychange', function(){ if(!document.hidden) reloadState(); });
+	window.addEventListener('storage', reloadState);
+
+	/* one delegated listener */
+	document.addEventListener('click', function(e){
+		var t = e.target.closest('[data-act]');
+		if(!t) return;
+		if(t.tagName === 'A') e.preventDefault();
+		var act = t.getAttribute('data-act');
+		var n = t.getAttribute('data-n');
+
+		if(act === 'menu') document.documentElement.classList.toggle('is-open');
+		else if(act === 'routine'){ view = {t:'session', r:n}; render(); document.documentElement.classList.remove('is-open'); }
+		else if(act === 'adhoc'){ view = {t:'session', r:ADHOC}; render(); document.documentElement.classList.remove('is-open'); }
+		else if(act === 'progress'){ view = {t:'progress', r:n}; render(); document.documentElement.classList.remove('is-open'); }
+		else if(act === 'confirm') confirmSet(n, +t.getAttribute('data-s'));
+		else if(act === 'edit') openStepper(n, +t.getAttribute('data-s'));
+		else if(act === 'detail') openDetail(n);
+		else if(act === 'pickex') openPicker();
+		else if(act === 'pick'){
+			var sess = ensureSession(view.r);
+			if(!sess.sets[n]){
+				var def = exByName(n), nx = def && computeNext(def);
+				sess.sets[n] = {w:nx ? nx.w : 20, r:[null, null]};
+			}
+			save(); render(); closeCard();
+		}
+		else if(act === 'st'){
+			var f = t.getAttribute('data-f'), d = +t.getAttribute('data-d');
+			if(f === 'w') stepState.w = Math.max(0, num(stepState.w + d * stepState.inc));
+			else stepState.reps = Math.max(1, stepState.reps + d);
+			stepRefresh();
+		}
+		else if(act === 'typeval'){
+			var f2 = t.getAttribute('data-f');
+			var inp = document.createElement('input');
+			inp.type = 'text'; inp.inputMode = f2 === 'w' ? 'decimal' : 'numeric';
+			inp.value = f2 === 'w' ? stepState.w : stepState.reps;
+			t.replaceWith(inp); inp.focus(); inp.select();
+			var commit = function(){
+				var v = parseFloat(String(inp.value).replace(',', '.'));
+				if(!isNaN(v) && v >= 0){ if(f2 === 'w') stepState.w = num(v); else stepState.reps = Math.max(1, Math.round(v)); }
+				openStepper(stepState.n, stepState.si);   // rebuild card (keeps state)
+			};
+			inp.addEventListener('blur', commit);
+			inp.addEventListener('keydown', function(ev){ if(ev.key === 'Enter') inp.blur(); });
+		}
+		else if(act === 'stsave') logSet();
+		else if(act === 'hdel') delHistEntry(n, t.getAttribute('data-d'));
+		else if(act === 'cal') openCal();
+		else if(act === 'calsave'){
+			var v = parseInt(document.getElementById('cv').value, 10);
+			if(!isNaN(v) && v > 0){
+				var nm = document.getElementById('cn').value.trim();
+				(S.cal.d[today()] = S.cal.d[today()] || []).push(nm ? {v:v, n:nm} : v);
+				save(); renderStat(); openCal();          // stay open for the next item
+			}
+		}
+		else if(act === 'cdel'){
+			var arr = S.cal.d[today()];
+			if(arr){ arr.splice(+t.getAttribute('data-e'), 1); if(!arr.length) delete S.cal.d[today()]; }
+			save(); renderStat(); openCal();
+		}
+		else if(act === 'budget') openBudget();
+		else if(act === 'budgetsave'){
+			var b = parseInt(document.getElementById('cb').value, 10);
+			S.cal.b = isNaN(b) || b < 0 ? 0 : b;
+			save(); renderStat(); openCal();
+		}
+		else if(act === 'wt') openWt();
+		else if(act === 'wtsave'){
+			var wv = parseFloat(String(document.getElementById('wv').value).replace(',', '.'));
+			if(!isNaN(wv) && wv > 0){
+				var lastW = S.wt.length ? S.wt[S.wt.length - 1] : null;
+				if(lastW && lastW.d === today()) lastW.kg = wv;
+				else { S.wt.push({d:today(), kg:wv}); S.wt.sort(function(a, b){ return a.d < b.d ? -1 : 1; }); }
+				save(); renderStat(); closeCard();
+			}
+		}
+		else if(act === 'wdel'){ S.wt.splice(+t.getAttribute('data-e'), 1); save(); renderStat(); openWt(); }
+		else if(act === 'settings'){ document.documentElement.classList.remove('is-open'); openSettings(); }
+		else if(act === 'manager') openManager();
+		else if(act === 'exedit') openExEdit(n || '');
+		else if(act === 'exsave') saveExercise();
+		else if(act === 'exdel') armOrRun('ex:' + editEx, t, deleteExercise);
+		else if(act === 'rtedit') openRtEdit(+t.getAttribute('data-i'));
+		else if(act === 'rtsave') saveRoutine();
+		else if(act === 'rtdel') armOrRun('rt:' + editRt, t, deleteRoutine);
+		else if(act === 'export') exportData();
+		else if(act === 'import') document.getElementById('importfile').click();
+		else if(act === 'about') openAbout();
+		else if(act === 'theme') toggleTheme();
+		else if(act === 'close') closeCard();
+	});
+
+	document.getElementById('importfile').addEventListener('change', function(e){
+		if(e.target.files[0]) importData(e.target.files[0]);
+		e.target.value = '';
+	});
+
+	/* drag-to-dismiss anywhere on the card (graph included); interactive elements excluded */
+	(function(){
+		var fb = document.getElementById('fbody');
+		var y0 = null, lastY = 0, lastT = 0, v = 0, engaged = false, pid = null;
+		fcard.addEventListener('pointerdown', function(e){
+			if(e.target.closest('button, input, a, .chart')) return;
+			y0 = lastY = e.clientY; lastT = e.timeStamp; v = 0; engaged = false; pid = e.pointerId;
+		});
+		fcard.addEventListener('pointermove', function(e){
+			if(y0 === null || e.pointerId !== pid) return;
+			var dt = e.timeStamp - lastT;
+			if(dt > 0) v = (e.clientY - lastY) / dt;
+			lastY = e.clientY; lastT = e.timeStamp;
+			var dy = e.clientY - y0;
+			if(!engaged){
+				if(dy > 8 && fb.scrollTop <= 0){
+					engaged = true;
+					fcard.style.transition = 'none';
+					try{ fcard.setPointerCapture(pid); }catch(x){}
+					var a = document.activeElement;
+					if(a && a.blur) a.blur();
+				} else if(dy < -8){ y0 = null; return; }
+			}
+			if(engaged) fcard.style.transform = 'translateY(' + (dy < 0 ? dy * 0.2 : dy) + 'px)';
+		});
+		function end(e){
+			if(y0 === null || e.pointerId !== pid) return;
+			var dy = lastY - y0;
+			fcard.style.transition = '';
+			fcard.style.transform = '';
+			if(engaged && (dy > fcard.getBoundingClientRect().height * 0.25 || v > 0.5)) closeCard();
+			y0 = null; engaged = false; pid = null;
+		}
+		fcard.addEventListener('pointerup', end);
+		fcard.addEventListener('pointercancel', end);
+	})();
+
+	fcard.addEventListener('click', function(e){ if(e.target === fcard) closeCard(); });
+	fcard.addEventListener('focusin', function(e){
+		if(e.target && e.target.tagName === 'INPUT')
+			setTimeout(function(){ try{ e.target.scrollIntoView({block:'center', behavior:'smooth'}); }catch(x){} }, 300);
+	});
+	fcard.addEventListener('cancel', function(e){ e.preventDefault(); closeCard(); });   // Esc animates too
+
+	if(window.visualViewport){
+		var vv = window.visualViewport;
+		var syncKb = function(){
+			var inset = innerHeight - vv.height - vv.offsetTop;
+			document.documentElement.style.setProperty('--kb', Math.max(0, inset) + 'px');
+		};
+		vv.addEventListener('resize', syncKb);
+		vv.addEventListener('scroll', syncKb);
+	}
+});
 </script>
 </body>
 </html>
