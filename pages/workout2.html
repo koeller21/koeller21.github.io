@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="theme-color" content="#ffffff">
+<title>sessions · mock</title>
+<style>
+/* ============ tokens ============ */
+:root{
+	color-scheme: dark;
+	--font: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+	/* chatgpt-app dark: neutral charcoal, zero color cast */
+	--base:#0d0d0d;
+	--drawer-bg:#171717;
+	--label:#ececec;
+	--label-2:#9b9b9b;
+	--label-3:#676767;
+	--sep:rgba(255,255,255,.10);
+	--hairline:rgba(255,255,255,.07);
+	--hairline-hi:rgba(255,255,255,.10);
+	--fill:#212121;
+	--fill-press:#2f2f2f;
+
+	--card-bg:#171717;
+	--glass-bar:#1e1e1e;          /* solid fallback */
+	--glass-card:#1e1e1e;
+	--glass-t:rgba(32,32,32,.55);      /* translucent glass, neutral */
+	--glass-card-t:rgba(28,28,28,.72);
+	--blur:blur(22px) saturate(160%);
+	--spec-top:rgba(255,255,255,.16);  /* faux-lens rim: bright top edge, faint bottom bounce */
+	--spec-bot:rgba(255,255,255,.05);
+	--pane-edge:rgba(255,255,255,.07);
+	--pane-shadow:rgba(0,0,0,.5);
+
+	--cta:#ececec;          /* inverted button, chatgpt-style */
+	--cta-label:#0d0d0d;
+	--tint:#ececec;         /* charts & emphasis stay monochrome */
+	--green:#10a37f;
+	--red:#ef4146;
+
+	--r-ctl:10px; --r-card:14px; --r-sheet:18px; --r-pane:16px;
+	--gutter:16px; --row:44px;
+	--ease:cubic-bezier(.32,.72,0,1);
+	--dw:min(78vw, 320px);
+}
+[data-theme="light"]{
+	color-scheme: light;
+	/* chatgpt-app light: white + warm neutral grays */
+	--base:#ffffff;
+	--drawer-bg:#f9f9f9;
+	--label:#0d0d0d;
+	--label-2:#8e8e8e;
+	--label-3:#b4b4b4;
+	--sep:rgba(0,0,0,.08);
+	--hairline:rgba(0,0,0,.06);
+	--hairline-hi:rgba(0,0,0,.04);
+	--fill:#f0f0f0;
+	--fill-press:#e3e3e3;
+	--card-bg:#f7f7f7;
+	--glass-bar:#ffffff;
+	--glass-card:#ffffff;
+	--cta:#0d0d0d;
+	--cta-label:#ffffff;
+	--tint:#0d0d0d;
+	--green:#10a37f;
+	--red:#d00e17;
+	--glass-t:rgba(255,255,255,.6);
+	--glass-card-t:rgba(252,252,252,.8);
+	--spec-top:rgba(255,255,255,.9);
+	--spec-bot:rgba(255,255,255,.35);
+	--pane-edge:rgba(0,0,0,.08);
+	--pane-shadow:rgba(0,0,0,.05);
+}
+
+/* ============ reset / shell ============ */
+*{ box-sizing:border-box; margin:0; -webkit-tap-highlight-color:transparent; }
+html{ overscroll-behavior:none; -webkit-text-size-adjust:100%; }
+body{
+	font-family:var(--font); font-size:17px; line-height:22px; letter-spacing:-0.025em;
+	color:var(--label); background:var(--drawer-bg);   /* one continuous under-layer behind the pane */
+	overflow:hidden; height:100dvh;
+	-webkit-font-smoothing:antialiased;
+}
+button{ font:inherit; color:inherit; background:none; border:0; padding:0; text-align:inherit; }
+button, .row{ touch-action:manipulation; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
+.num{ font-variant-numeric:tabular-nums; }
+
+/* ============ drawer (beneath) ============ */
+#drawer{
+	position:fixed; inset:0 auto 0 0; width:var(--dw); z-index:0;
+	display:flex; flex-direction:column;
+	background:var(--drawer-bg);
+	padding:calc(env(safe-area-inset-top) + 14px) 10px calc(env(safe-area-inset-bottom) + 10px);
+	transform:translateX(-16%);
+	transition:transform .32s var(--ease);
+	will-change:transform;
+}
+#drawer > *{ position:relative; }
+.dhead{ font-size:13px; line-height:18px; letter-spacing:0; color:var(--label-3); padding:18px 12px 6px; }
+.drow{
+	display:flex; align-items:center; gap:10px; width:100%;
+	min-height:var(--row); padding:10px 12px; border-radius:var(--r-ctl);
+	font-size:16px; letter-spacing:-0.02em;
+}
+.drow:active{ background:var(--fill-press); }
+.drow .sub{ margin-left:auto; font-size:13px; color:var(--label-3); letter-spacing:0; }
+.drow.sel{ background:var(--fill); }
+.due{
+	font-size:11px; line-height:1; letter-spacing:.02em;
+	color:var(--cta-label); background:var(--cta);
+	border-radius:999px; padding:4px 8px; margin-left:8px; font-weight:600;
+}
+.dscroll{ flex:1; overflow-y:auto; overscroll-behavior:contain; min-height:0; }
+.dfoot{
+	display:flex; align-items:center; gap:6px;
+	padding-top:10px; border-top:1px solid var(--hairline);
+}
+.dfoot .drow{ flex:1; }
+.iconbtn{
+	width:40px; height:40px; border-radius:999px; flex-shrink:0;
+	display:grid; place-items:center; color:var(--label-2);
+}
+.iconbtn:active{ background:var(--fill-press); }
+
+/* ============ main pane (slides) ============ */
+#pane{
+	position:relative; z-index:1; height:100dvh;
+	display:flex; flex-direction:column;
+	background:var(--base);
+	transform-origin:center left;
+	transition:transform .32s var(--ease), border-radius .32s var(--ease);
+	will-change:transform;
+}
+#pane > *{ position:relative; z-index:1; }
+.is-open #drawer{ transform:translateX(0); }
+.is-open #pane{
+	transform:translateX(var(--dw)) scale(.94);
+	border-radius:var(--r-pane); overflow:hidden;
+	box-shadow:-1px 0 0 var(--pane-edge), -8px 0 40px var(--pane-shadow);   /* edge belongs to the pane, slides with it */
+}
+#scrim{
+	position:absolute; inset:0; z-index:40;
+	background:transparent; pointer-events:none;   /* invisible tap-to-close target, never dims */
+}
+.is-open #scrim{ pointer-events:auto; }
+
+/* ============ floating header (detached glass islands) ============ */
+#topbar{
+	position:absolute; top:0; left:0; right:0; z-index:30;
+	display:flex; align-items:center; gap:8px;
+	padding:calc(env(safe-area-inset-top) + 10px) 12px 0;
+	pointer-events:none;
+}
+#topbar > *{ pointer-events:auto; }
+.fab{
+	background:var(--glass-bar); color:var(--label);
+	border-radius:999px;
+	box-shadow:inset 0 1px 0 var(--spec-top), inset 0 -1px 0 var(--spec-bot),
+	           0 0 0 .5px var(--hairline), 0 4px 16px rgba(0,0,0,.18);
+	transition:transform .12s var(--ease);
+}
+.fab:active{ transform:scale(.94); }
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))){
+	.fab{ background:var(--glass-t); -webkit-backdrop-filter:var(--blur); backdrop-filter:var(--blur); }
+}
+#topbar .iconbtn{ width:44px; height:44px; color:var(--label); }
+.pills{ margin-left:auto; display:flex; gap:8px; }
+.pill{
+	font-size:13px; line-height:1; letter-spacing:0;
+	padding:0 14px; min-height:44px; display:flex; align-items:center;
+	color:var(--label-2);
+}
+.pill b{ color:var(--label); font-weight:600; }
+.pill.over b{ color:var(--red); }
+
+/* ============ content ============ */
+#scroll{
+	flex:1; overflow-y:auto; overscroll-behavior-y:contain; min-height:0;
+	padding:calc(env(safe-area-inset-top) + 66px) var(--gutter) calc(env(safe-area-inset-bottom) + 40px);
+}
+.lt{ font-size:34px; line-height:41px; letter-spacing:-0.03em; font-weight:700; margin-top:14px; }
+.lt .done{ color:var(--green); font-size:24px; vertical-align:2px; }
+.subtitle{ font-size:13px; line-height:18px; letter-spacing:0; color:var(--label-2); margin:2px 0 18px; }
+
+/* exercise card */
+.xcard{
+	background:var(--card-bg);
+	border-radius:var(--r-card);
+	box-shadow:0 0 0 .5px var(--hairline);
+	margin-bottom:14px; overflow:hidden;
+}
+.xhead{
+	display:flex; align-items:baseline; gap:8px; width:100%;
+	padding:13px 16px 2px;
+}
+.xhead:active .xname{ opacity:.6; }
+.xname{ font-size:17px; font-weight:600; letter-spacing:-0.025em; }
+.xlast{ margin-left:auto; font-size:13px; letter-spacing:0; color:var(--label-3); }
+.xhead .chev{ color:var(--label-3); font-size:14px; }
+.setrow{
+	position:relative; display:flex; align-items:center; gap:12px;
+	min-height:var(--row); padding:6px 16px;
+}
+.setrow + .setrow::before{
+	content:""; position:absolute; top:0; left:16px; right:0; height:1px;
+	background:var(--sep); transform:scaleY(.5); transform-origin:top;
+}
+.setno{ font-size:13px; color:var(--label-3); width:14px; letter-spacing:0; }
+.setval{
+	font-size:17px; letter-spacing:-0.02em; padding:6px 10px; margin-left:-10px;
+	border-radius:8px;
+}
+.setval:active{ background:var(--fill-press); }
+.setval small{ font-size:13px; color:var(--label-2); font-weight:400; }
+.setrow.done .setval{ color:var(--label-2); }
+.confirm{
+	margin-left:auto; width:30px; height:30px; border-radius:999px; flex-shrink:0;
+	display:grid; place-items:center;
+	border:1.5px solid var(--label-3); color:transparent;
+	font-size:15px; font-weight:700;
+	transition:transform .15s var(--ease), background .15s, border-color .15s;
+}
+.confirm:active{ transform:scale(.9); }
+.setrow.done .confirm{ background:var(--green); border-color:var(--green); color:#fff; }
+
+/* ============ floating card (AirPods style) ============ */
+dialog.fcard{
+	position:fixed; inset:auto 8px calc(env(safe-area-inset-bottom) + 8px + var(--kb, 0px)) 8px;
+	width:auto; max-width:560px; margin-inline:auto;
+	max-height:86dvh; padding:0; border:0;
+	border-radius:var(--r-sheet);
+	background:var(--glass-card); color:var(--label);
+	box-shadow:inset 0 1px 0 var(--spec-top), inset 0 -1px 0 var(--spec-bot),
+	           0 0 0 .5px var(--hairline), 0 18px 60px rgba(0,0,0,.45);
+	transform:translateY(calc(100% + 40px));
+	transition:transform .36s var(--ease);
+	display:flex; flex-direction:column;
+}
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))){
+	dialog.fcard{ background:var(--glass-card-t); -webkit-backdrop-filter:blur(28px) saturate(160%); backdrop-filter:blur(28px) saturate(160%); }
+}
+dialog.fcard[open]{ transform:translateY(0); }
+@starting-style{ dialog.fcard[open]{ transform:translateY(calc(100% + 40px)); } }
+dialog.fcard::backdrop{
+	background:rgba(0,0,0,.4); opacity:0;
+	transition:opacity .36s var(--ease);
+}
+dialog.fcard[open]::backdrop{ opacity:1; }
+@starting-style{ dialog.fcard[open]::backdrop{ opacity:0; } }
+.grab{ width:36px; height:5px; border-radius:2.5px; background:var(--label-3); margin:6px auto 0; flex-shrink:0; }
+.fbody{ padding:14px 20px calc(20px); overflow-y:auto; overscroll-behavior:contain; }
+.ftitle{ font-size:22px; line-height:28px; letter-spacing:-0.026em; font-weight:700; text-align:center; margin:6px 0 2px; }
+.fsub{ font-size:13px; letter-spacing:0; color:var(--label-2); text-align:center; margin-bottom:14px; }
+
+/* steppers */
+.step{ display:flex; align-items:center; justify-content:center; gap:18px; margin:10px 0; }
+.step .val{ font-size:44px; line-height:1.1; font-weight:700; letter-spacing:-0.03em; min-width:150px; text-align:center; }
+.step .val small{ font-size:15px; font-weight:500; color:var(--label-2); letter-spacing:0; }
+.sbtn{
+	width:54px; height:54px; border-radius:999px; flex-shrink:0;
+	background:var(--fill); color:var(--label);
+	font-size:28px; font-weight:500; line-height:1;
+	display:grid; place-items:center;
+	box-shadow:inset 0 .5px 0 var(--hairline-hi);
+	transition:transform .12s var(--ease);
+}
+.sbtn:active{ background:var(--fill-press); transform:scale(.92); }
+.cta{
+	display:block; width:100%; min-height:50px; margin-top:14px;
+	border-radius:999px; background:var(--cta); color:var(--cta-label);
+	font-size:17px; font-weight:600; text-align:center; letter-spacing:-0.02em;
+	transition:transform .12s var(--ease);
+}
+.cta:active{ transform:scale(.97); opacity:.85; }
+.cta.plain{ background:var(--fill); color:var(--label); }
+
+/* list inside cards (kcal entries, history) */
+.flist{ margin-top:12px; border-radius:12px; background:var(--fill); overflow:hidden; }
+.frow{ position:relative; display:flex; align-items:center; gap:10px; min-height:var(--row); padding:8px 14px; font-size:15px; letter-spacing:0; }
+.frow + .frow::before{ content:""; position:absolute; top:0; left:14px; right:0; height:1px; background:var(--sep); transform:scaleY(.5); }
+.frow .sub{ color:var(--label-2); }
+.frow .end{ margin-left:auto; color:var(--label-2); }
+.frow .del{ color:var(--red); font-size:13px; }
+
+/* progress cards */
+.pcard{ display:block; width:100%; padding:14px 16px 12px; }
+.pcard:active{ background:var(--fill-press); }
+.phead{ display:flex; align-items:baseline; gap:8px; }
+.phead .xlast{ margin-left:auto; }
+.spark{ display:block; width:100%; margin:10px 0 4px; }
+.spark polyline{ fill:none; stroke:var(--tint); stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+.spark circle{ fill:var(--tint); }
+.pfoot{ display:flex; align-items:baseline; font-size:13px; letter-spacing:0; color:var(--label-2); }
+.pfoot .delta{ margin-left:auto; color:var(--green); font-weight:600; }
+
+/* chart */
+.chart{ display:block; margin:8px auto 0; }
+.fbody .chart{ margin-top:26px; }        /* air between actions and the graph */
+.chart .grid{ stroke:var(--sep); }
+.chart .tick{ fill:var(--label-3); font:10px var(--font); letter-spacing:0; }
+.chart polyline{ fill:none; stroke:var(--tint); stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+.chart .sel{ fill:var(--tint); stroke:var(--base); stroke-width:2; }
+
+/* misc */
+input.plain{
+	width:100%; min-height:46px; font-size:17px; padding:10px 14px;
+	border-radius:12px; border:0; background:var(--fill); color:var(--label);
+	outline:none; margin-top:8px;
+}
+
+/* ============ desktop: docked two-pane, chatgpt-style ============ */
+@media (min-width: 900px){
+	#drawer{ transform:none; transition:none; }
+	#pane, .is-open #pane{
+		margin-left:var(--dw);
+		transform:none; border-radius:0; overflow:visible;
+		box-shadow:-1px 0 0 var(--pane-edge);      /* the pane's own edge, nothing on the sidebar */
+	}
+	#scrim{ display:none; }
+	#topbar [data-act="menu"]{ display:none; }
+	#topbar{ padding-left:20px; }
+	#scroll{ padding-inline:max(24px, calc((100% - 680px) / 2)); }   /* centered content column */
+}
+
+@media (prefers-reduced-motion: reduce){
+	*, *::before, *::after{ transition-duration:.01ms !important; animation-duration:.01ms !important; }
+	.is-open #pane{ transform:none; border-radius:0; }
+	#drawer{ transform:none; }
+	#scrim{ transition:opacity 150ms linear; }
+}
+@media (hover:hover) and (pointer:fine){
+	.drow:hover, .pill:hover, .sbtn:hover{ background:var(--fill-press); }
+}
+</style>
+</head>
+<body>
+
+<aside id="drawer" aria-hidden="true">
+	<button class="drow" data-act="adhoc">＋&nbsp; Ad-hoc workout</button>
+	<div class="dhead">ROUTINES</div>
+	<div id="droutines"></div>
+	<div class="dhead">PROGRESS</div>
+	<div class="dscroll" id="dhistory"></div>
+	<div class="dfoot">
+		<button class="drow" data-act="settings">⚙&nbsp; Settings</button>
+		<button class="iconbtn" data-act="theme" aria-label="toggle theme">◐</button>
+	</div>
+</aside>
+
+<div id="pane">
+	<header id="topbar">
+		<button class="iconbtn fab" data-act="menu" aria-label="menu">
+			<svg width="20" height="20" viewBox="0 0 20 20"><path d="M3 6h14M3 12h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+		</button>
+		<div class="pills">
+			<button class="pill fab num" id="pillCal" data-act="cal"><b>1840</b>/2400&nbsp;kcal</button>
+			<button class="pill fab num" id="pillWt" data-act="wt"><b>82.4</b>&nbsp;kg</button>
+		</div>
+	</header>
+	<main id="scroll">
+		<h1 class="lt" id="title">Push</h1>
+		<p class="subtitle" id="subtitle">due · last done 3 days ago</p>
+		<div id="cards"></div>
+	</main>
+	<div id="scrim" data-act="menu"></div>
+</div>
+
+<dialog class="fcard" id="fcard">
+	<div class="grab"></div>
+	<div class="fbody" id="fbody"></div>
+</dialog>
+
+<script>
+/* ================= mock state (fake, in-memory only) ================= */
+var routines = [
+	{name:'Push', last:'3 days ago', due:true, ex:[
+		{n:'Overhead Press',      w:52.5, reps:6,  inc:2.5,  last:'50×8 · 50×7'},
+		{n:'Incline Chest Press', w:60,   reps:7,  inc:2.5,  last:'60×6 · 60×6'},
+		{n:'Triceps Extension',   w:26.25,reps:8,  inc:1.25, last:'25×10 · 25×9'},
+		{n:'Lateral Raises',      w:12.5, reps:10, inc:1.25, last:'12.5×12 · 12.5×10'},
+		{n:'Abs',                 w:10,   reps:14, inc:1.25, last:'10×12 · 10×12'}
+	]},
+	{name:'Pull', last:'yesterday', ex:[
+		{n:'Lat Pulldown', w:75, reps:7, inc:2.5, last:'75×6 · 75×6'},
+		{n:'Seated Row',   w:65, reps:9, inc:2.5, last:'65×8 · 65×8'},
+		{n:'Deadlift',     w:120,reps:6, inc:2.5, last:'120×5 · 120×5'},
+		{n:'Biceps Curl',  w:16.25,reps:8,inc:1.25,last:'15×10 · 15×10'}
+	]},
+	{name:'Legs', last:'2 days ago', ex:[
+		{n:'Hack Squat',    w:105, reps:8,  inc:2.5,  last:'102.5×12 · 102.5×11'},
+		{n:'Leg Extension', w:41.25,reps:10,inc:1.25, last:'40×15 · 40×14'},
+		{n:'Leg Curl',      w:38.75,reps:8, inc:1.25, last:'37.5×10 · 37.5×9'}
+	]}
+];
+var sessionCounts = [12, 11, 10];          // fake: sessions ever logged per routine
+// fake e1RM series per exercise (upward with realistic wobble)
+routines.forEach(function(r, ri){
+	r.ex.forEach(function(x, xi){
+		var v = x.w * (1 + x.reps / 30) * 0.82, out = [];
+		for(var k = 0; k < 12; k++){
+			out.push(Math.round(v * 10) / 10);
+			v *= 1 + (0.012 + ((ri * 7 + xi * 13 + k * 3) % 10) / 400 - 0.008);
+		}
+		x.trend = out;
+	});
+});
+var cur = 0;                       // selected routine
+var done = {};                     // "ri:xi:si" -> {w, reps}
+var fcard = document.getElementById('fcard'), fbody = document.getElementById('fbody');
+
+/* ================= rendering ================= */
+function esc(s){ return String(s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+
+function renderDrawer(){
+	var h = '';
+	routines.forEach(function(r, i){
+		h += '<button class="drow' + (i === cur ? ' sel' : '') + '" data-act="routine" data-i="' + i + '">'
+		   + esc(r.name) + (r.due ? '<span class="due">DUE</span>' : '')
+		   + '<span class="sub">' + esc(r.last) + '</span></button>';
+	});
+	document.getElementById('droutines').innerHTML = h;
+	h = '';
+	routines.forEach(function(r, i){
+		h += '<button class="drow" data-act="progress" data-i="' + i + '">' + esc(r.name)
+		   + '<span class="sub num">' + sessionCounts[i] + ' sessions</span></button>';
+	});
+	document.getElementById('dhistory').innerHTML = h;
+}
+
+function fmtVal(w, reps){
+	return '<span class="num">' + w + '</span><small> kg</small> <span class="num">× ' + reps + '</span>';
+}
+
+function renderSession(){
+	var r = routines[cur], h = '', total = 0, confirmed = 0;
+	r.ex.forEach(function(x, xi){
+		var rows = '';
+		for(var si = 0; si < 2; si++){
+			var key = cur + ':' + xi + ':' + si;
+			var d = done[key]; total++;
+			if(d) confirmed++;
+			rows += '<div class="setrow' + (d ? ' done' : '') + '">'
+			      + '<span class="setno num">' + (si + 1) + '</span>'
+			      + '<button class="setval" data-act="edit" data-x="' + xi + '" data-s="' + si + '">'
+			      + fmtVal(d ? d.w : x.w, d ? d.reps : x.reps) + '</button>'
+			      + '<button class="confirm" data-act="confirm" data-x="' + xi + '" data-s="' + si + '">✓</button>'
+			      + '</div>';
+		}
+		h += '<div class="xcard">'
+		   + '<button class="xhead" data-act="detail" data-x="' + xi + '">'
+		   + '<span class="xname">' + esc(x.n) + '</span>'
+		   + '<span class="xlast num">' + esc(x.last) + '</span><span class="chev">›</span></button>'
+		   + rows + '</div>';
+	});
+	document.getElementById('cards').innerHTML = h;
+	document.getElementById('title').innerHTML = esc(r.name) + (confirmed === total ? ' <span class="done">✓</span>' : '');
+	document.getElementById('subtitle').textContent = confirmed === total
+		? 'completed · ' + r.ex.length + ' exercises'
+		: (r.due ? 'due · ' : '') + 'last done ' + r.last;
+}
+
+/* axis-free sparkline for progress cards */
+function sparkSvg(vals){
+	var W = Math.min(496, innerWidth - 64), H = 44, n = vals.length;
+	var min = Math.min.apply(null, vals), max = Math.max.apply(null, vals);
+	if(min === max){ min -= 1; max += 1; }
+	var pts = [];
+	for(var k = 0; k < n; k++)
+		pts.push((3 + k * (W - 10) / (n - 1)).toFixed(1) + ',' + (4 + (1 - (vals[k] - min) / (max - min)) * (H - 8)).toFixed(1));
+	var lp = pts[n - 1].split(',');
+	return '<svg class="spark" width="' + W + '" height="' + H + '">'
+	     + '<polyline points="' + pts.join(' ') + '"/>'
+	     + '<circle cx="' + lp[0] + '" cy="' + lp[1] + '" r="3.5"/></svg>';
+}
+
+function renderProgress(ri){
+	var r = routines[ri], h = '';
+	r.ex.forEach(function(x, xi){
+		var t = x.trend, now = t[t.length - 1], first = t[0];
+		var pct = Math.round((now / first - 1) * 100);
+		h += '<button class="xcard pcard" data-act="detail" data-x="' + xi + '">'
+		   + '<div class="phead"><span class="xname">' + esc(x.n) + '</span>'
+		   + '<span class="xlast num">now ' + x.w + '×' + x.reps + '</span></div>'
+		   + sparkSvg(t)
+		   + '<div class="pfoot"><span class="num">e1RM ' + Math.round(now) + ' kg</span>'
+		   + '<span class="delta num">' + (pct >= 0 ? '+' : '') + pct + '% · ' + t.length + ' wks</span></div>'
+		   + '</button>';
+	});
+	document.getElementById('cards').innerHTML = h;
+	document.getElementById('title').textContent = r.name;
+	document.getElementById('subtitle').textContent = sessionCounts[ri] + ' sessions · last done ' + r.last;
+	cur = ri;                                   // detail taps resolve against this routine
+}
+
+/* tiny fake chart for detail/kcal/wt cards */
+function chartSvg(vals){
+	var W = Math.min(420, innerWidth - 88), H = 150, T = 8, B = H - 20, L = 34, R = W - 8, n = vals.length;
+	var min = Math.min.apply(null, vals), max = Math.max.apply(null, vals);
+	if(min === max){ min -= 1; max += 1; }
+	var pts = [];
+	for(var k = 0; k < n; k++)
+		pts.push((L + k * (R - L) / (n - 1)).toFixed(1) + ',' + (T + (1 - (vals[k] - min) / (max - min)) * (B - T)).toFixed(1));
+	var lp = pts[n - 1].split(',');
+	var mid = ((min + max) / 2).toFixed(0);
+	return '<svg class="chart" width="' + W + '" height="' + H + '">'
+	     + '<line class="grid" x1="' + L + '" y1="' + T + '" x2="' + R + '" y2="' + T + '"/>'
+	     + '<line class="grid" x1="' + L + '" y1="' + ((T + B) / 2) + '" x2="' + R + '" y2="' + ((T + B) / 2) + '"/>'
+	     + '<line class="grid" x1="' + L + '" y1="' + B + '" x2="' + R + '" y2="' + B + '"/>'
+	     + '<text class="tick num" x="' + (L - 6) + '" y="' + (T + 3) + '" text-anchor="end">' + max.toFixed(0) + '</text>'
+	     + '<text class="tick num" x="' + (L - 6) + '" y="' + ((T + B) / 2 + 3) + '" text-anchor="end">' + mid + '</text>'
+	     + '<text class="tick num" x="' + (L - 6) + '" y="' + (B + 3) + '" text-anchor="end">' + min.toFixed(0) + '</text>'
+	     + '<polyline points="' + pts.join(' ') + '"/>'
+	     + '<circle class="sel" cx="' + lp[0] + '" cy="' + lp[1] + '" r="4"/></svg>';
+}
+
+/* ================= floating card variants ================= */
+var stepState = null;
+function openStepper(xi, si){
+	var x = routines[cur].ex[xi];
+	var key = cur + ':' + xi + ':' + si;
+	var d = done[key];
+	stepState = {xi: xi, si: si, w: d ? d.w : x.w, reps: d ? d.reps : x.reps, inc: x.inc};
+	fbody.innerHTML =
+		'<div class="ftitle">' + esc(x.n) + '</div>'
+		+ '<div class="fsub">set ' + (si + 1) + ' · target ' + x.w + ' kg × ' + x.reps + '</div>'
+		+ '<div class="step">'
+		+ '<button class="sbtn" data-act="st" data-f="w" data-d="-1">−</button>'
+		+ '<div class="val num" id="stw">' + stepState.w + '<small> kg</small></div>'
+		+ '<button class="sbtn" data-act="st" data-f="w" data-d="1">＋</button></div>'
+		+ '<div class="step">'
+		+ '<button class="sbtn" data-act="st" data-f="r" data-d="-1">−</button>'
+		+ '<div class="val num" id="str">' + stepState.reps + '<small> reps</small></div>'
+		+ '<button class="sbtn" data-act="st" data-f="r" data-d="1">＋</button></div>'
+		+ '<button class="cta" data-act="stsave">Log set</button>';
+	fcard.showModal();
+}
+
+function openDetail(xi){
+	var x = routines[cur].ex[xi];
+	fbody.innerHTML =
+		'<div class="ftitle">' + esc(x.n) + '</div>'
+		+ '<div class="fsub">e1RM trend · last 12 sessions</div>'
+		+ chartSvg([56,57,58,58,60,59,61,62,62,63,63.5,65])
+		+ '<div class="flist">'
+		+ '<div class="frow"><span>Fri 11 Jul</span><span class="end num">50 × 8 · 50 × 7</span></div>'
+		+ '<div class="frow"><span>Tue 8 Jul</span><span class="end num">50 × 7 · 50 × 7</span></div>'
+		+ '<div class="frow"><span>Sat 5 Jul</span><span class="end num">50 × 6 · 50 × 6</span></div>'
+		+ '</div>'
+		+ '<button class="cta plain" data-act="close">Done</button>';
+	fcard.showModal();
+}
+
+function openCal(){
+	fbody.innerHTML =
+		'<div class="ftitle num">1840 / 2400</div>'
+		+ '<div class="fsub">560 kcal left today</div>'
+		+ '<input class="plain num" inputmode="numeric" placeholder="add kcal">'
+		+ '<input class="plain" placeholder="name (optional)">'
+		+ '<button class="cta" data-act="close">Add</button>'
+		+ '<div class="flist">'
+		+ '<div class="frow"><span class="num">840</span><span class="sub">lunch</span><button class="end del">delete</button></div>'
+		+ '<div class="frow"><span class="num">620</span><span class="sub">breakfast</span><button class="end del">delete</button></div>'
+		+ '<div class="frow"><span class="num">380</span><button class="end del">delete</button></div>'
+		+ '</div>'
+		+ chartSvg([2100, 1450, 1900, 2350, 1840, 2050, 1840]);
+	fcard.showModal();
+}
+
+function openWt(){
+	fbody.innerHTML =
+		'<div class="ftitle num">82.4 <small style="font-size:17px;color:var(--label-2)">kg</small></div>'
+		+ '<div class="fsub">−1.6 kg in 14 days</div>'
+		+ '<input class="plain num" inputmode="decimal" value="82.4">'
+		+ '<button class="cta" data-act="close">Save</button>'
+		+ chartSvg([84.0, 83.6, 83.9, 83.2, 82.8, 82.9, 82.4]);
+	fcard.showModal();
+}
+
+function openSettings(){
+	fbody.innerHTML =
+		'<div class="ftitle">Settings</div>'
+		+ '<div class="flist">'
+		+ '<button class="frow" data-act="theme"><span>Theme</span><span class="end" id="thlabel"></span></button>'
+		+ '<div class="frow"><span>Daily budget</span><span class="end num">2400 kcal</span></div>'
+		+ '<div class="frow"><span>Routines & exercises</span><span class="end">›</span></div>'
+		+ '<div class="frow"><span>Export</span><span class="end">›</span></div>'
+		+ '<div class="frow"><span>Import</span><span class="end">›</span></div>'
+		+ '</div>'
+		+ '<button class="cta plain" data-act="close">Done</button>';
+	fcard.showModal();
+	syncThemeLabel();
+}
+function syncThemeLabel(){
+	var el = document.getElementById('thlabel');
+	if(el) el.textContent = document.documentElement.dataset.theme === 'dark' ? 'Dark' : 'Light';
+}
+
+/* ================= interactions ================= */
+document.addEventListener('click', function(e){
+	var t = e.target.closest('[data-act]');
+	if(!t) return;
+	var act = t.getAttribute('data-act');
+	var xi = +t.getAttribute('data-x'), si = +t.getAttribute('data-s');
+
+	if(act === 'menu'){ document.documentElement.classList.toggle('is-open'); }
+	else if(act === 'routine'){
+		cur = +t.getAttribute('data-i');
+		renderDrawer(); renderSession();
+		document.documentElement.classList.remove('is-open');
+	}
+	else if(act === 'confirm'){
+		var key = cur + ':' + xi + ':' + si;
+		if(done[key]) delete done[key];
+		else { var x = routines[cur].ex[xi]; done[key] = {w: x.w, reps: x.reps}; }
+		renderSession();
+	}
+	else if(act === 'edit'){ openStepper(xi, si); }
+	else if(act === 'detail'){ openDetail(xi); }
+	else if(act === 'cal'){ openCal(); }
+	else if(act === 'wt'){ openWt(); }
+	else if(act === 'settings'){ document.documentElement.classList.remove('is-open'); openSettings(); }
+	else if(act === 'progress'){
+		renderProgress(+t.getAttribute('data-i'));
+		renderDrawer();
+		document.documentElement.classList.remove('is-open');
+	}
+	else if(act === 'adhoc'){ document.documentElement.classList.remove('is-open'); }
+	else if(act === 'theme'){
+		var next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+		document.documentElement.dataset.theme = next;
+		document.querySelector('meta[name="theme-color"]').content = next === 'dark' ? '#0d0d0d' : '#ffffff';
+		syncThemeLabel();
+	}
+	else if(act === 'st'){
+		var f = t.getAttribute('data-f'), d = +t.getAttribute('data-d');
+		if(f === 'w'){ stepState.w = Math.max(0, Math.round((stepState.w + d * stepState.inc) * 100) / 100); document.getElementById('stw').innerHTML = stepState.w + '<small> kg</small>'; }
+		else { stepState.reps = Math.max(1, stepState.reps + d); document.getElementById('str').innerHTML = stepState.reps + '<small> reps</small>'; }
+	}
+	else if(act === 'stsave'){
+		done[cur + ':' + stepState.xi + ':' + stepState.si] = {w: stepState.w, reps: stepState.reps};
+		renderSession(); fcard.close();
+	}
+	else if(act === 'close'){ fcard.close(); }
+});
+
+/* tap on the backdrop closes the card (backdrop clicks target the dialog itself) */
+fcard.addEventListener('click', function(e){
+	if(e.target === fcard) fcard.close();
+});
+
+/* keyboard inset for the floating card (iOS) */
+if(window.visualViewport){
+	var vv = window.visualViewport;
+	var sync = function(){
+		var inset = innerHeight - vv.height - vv.offsetTop;
+		document.documentElement.style.setProperty('--kb', Math.max(0, inset) + 'px');
+	};
+	vv.addEventListener('resize', sync); vv.addEventListener('scroll', sync);
+}
+
+renderDrawer(); renderSession();
+</script>
+</body>
+</html>
