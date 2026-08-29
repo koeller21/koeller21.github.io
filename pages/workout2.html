@@ -538,7 +538,7 @@ function openStepper(xi, si){
 		+ '<div class="val num" id="str">' + stepState.reps + '<small> reps</small></div>'
 		+ '<button class="sbtn" data-act="st" data-f="r" data-d="1">＋</button></div>'
 		+ '<button class="cta" data-act="stsave">Log set</button>';
-	fcard.showModal();
+	showCard();
 }
 
 function openDetail(xi){
@@ -553,7 +553,7 @@ function openDetail(xi){
 		+ '<div class="frow"><span>Sat 5 Jul</span><span class="end num">50 × 6 · 50 × 6</span></div>'
 		+ '</div>'
 		+ '<button class="cta plain" data-act="close">Done</button>';
-	fcard.showModal();
+	showCard();
 }
 
 function openCal(){
@@ -569,7 +569,7 @@ function openCal(){
 		+ '<div class="frow"><span class="num">380</span><button class="end del">delete</button></div>'
 		+ '</div>'
 		+ chartSvg([2100, 1450, 1900, 2350, 1840, 2050, 1840]);
-	fcard.showModal();
+	showCard();
 }
 
 function openWt(){
@@ -579,7 +579,7 @@ function openWt(){
 		+ '<input class="plain num" inputmode="decimal" value="82.4">'
 		+ '<button class="cta" data-act="close">Save</button>'
 		+ chartSvg([84.0, 83.6, 83.9, 83.2, 82.8, 82.9, 82.4]);
-	fcard.showModal();
+	showCard();
 }
 
 function openSettings(){
@@ -593,7 +593,7 @@ function openSettings(){
 		+ '<div class="frow"><span>Import</span><span class="end">›</span></div>'
 		+ '</div>'
 		+ '<button class="cta plain" data-act="close">Done</button>';
-	fcard.showModal();
+	showCard();
 	syncThemeLabel();
 }
 function syncThemeLabel(){
@@ -649,9 +649,19 @@ document.addEventListener('click', function(e){
 	else if(act === 'close'){ closeCard(); }
 });
 
-/* animated close for every path */
+/* open without stealing focus: showModal() focuses the first input, which pops the
+   keyboard on iOS before the user asked for it — blur it right back. */
+function showCard(){
+	fcard.showModal();
+	var a = document.activeElement;
+	if(a && (a.tagName === 'INPUT' || a.tagName === 'BUTTON') && a.blur) a.blur();
+}
+
+/* animated close for every path; also drops the keyboard */
 function closeCard(){
 	if(!fcard.open || fcard.classList.contains('closing')) return;
+	var a = document.activeElement;
+	if(a && a.blur) a.blur();
 	fcard.classList.add('closing');
 	setTimeout(function(){ fcard.close(); fcard.classList.remove('closing'); fcard.style.transform = ''; }, 230);
 }
@@ -661,35 +671,42 @@ fcard.addEventListener('click', function(e){
 	if(e.target === fcard) closeCard();
 });
 
-/* drag-to-dismiss on the grabber strip */
+/* drag-to-dismiss anywhere on the card (graph included). Interactive elements are
+   excluded; the body only yields the gesture when its scroller sits at the top. */
 (function(){
-	var dz = document.getElementById('dragzone');
-	var y0 = null, lastY = 0, lastT = 0, v = 0;
-	dz.addEventListener('pointerdown', function(e){
-		y0 = lastY = e.clientY; lastT = e.timeStamp; v = 0;
-		fcard.style.transition = 'none';
-		dz.setPointerCapture(e.pointerId);
+	var fb = document.getElementById('fbody');
+	var y0 = null, lastY = 0, lastT = 0, v = 0, engaged = false, pid = null;
+	fcard.addEventListener('pointerdown', function(e){
+		if(e.target.closest('button, input, a')) return;
+		y0 = lastY = e.clientY; lastT = e.timeStamp; v = 0; engaged = false; pid = e.pointerId;
 	});
-	dz.addEventListener('pointermove', function(e){
-		if(y0 === null) return;
+	fcard.addEventListener('pointermove', function(e){
+		if(y0 === null || e.pointerId !== pid) return;
 		var dt = e.timeStamp - lastT;
 		if(dt > 0) v = (e.clientY - lastY) / dt;
 		lastY = e.clientY; lastT = e.timeStamp;
 		var dy = e.clientY - y0;
-		if(dy < 0) dy *= 0.2;                     // rubber-band upward
-		fcard.style.transform = 'translateY(' + dy + 'px)';
+		if(!engaged){
+			if(dy > 8 && fb.scrollTop <= 0){           // downward pull from the top -> take the gesture
+				engaged = true;
+				fcard.style.transition = 'none';
+				try{ fcard.setPointerCapture(pid); }catch(x){}
+				var a = document.activeElement;
+				if(a && a.blur) a.blur();                // swipe drops the keyboard
+			} else if(dy < -8){ y0 = null; return; }     // upward: it's a scroll, stand down
+		}
+		if(engaged) fcard.style.transform = 'translateY(' + (dy < 0 ? dy * 0.2 : dy) + 'px)';
 	});
-	function end(){
-		if(y0 === null) return;
+	function end(e){
+		if(y0 === null || e.pointerId !== pid) return;
 		var dy = lastY - y0;
 		fcard.style.transition = '';
-		var h = fcard.getBoundingClientRect().height;
 		fcard.style.transform = '';
-		if(dy > h * 0.25 || v > 0.5) closeCard();  // far enough or flicked
-		y0 = null;
+		if(engaged && (dy > fcard.getBoundingClientRect().height * 0.25 || v > 0.5)) closeCard();
+		y0 = null; engaged = false; pid = null;
 	}
-	dz.addEventListener('pointerup', end);
-	dz.addEventListener('pointercancel', end);
+	fcard.addEventListener('pointerup', end);
+	fcard.addEventListener('pointercancel', end);
 })();
 
 /* keep the focused field visible above the iOS keyboard */
