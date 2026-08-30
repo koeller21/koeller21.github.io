@@ -359,7 +359,6 @@ input.plain{
 <body>
 
 <aside id="drawer" aria-hidden="true">
-	<button class="drow" data-act="adhoc">＋&nbsp; Ad-hoc workout</button>
 	<div class="dhead">ROUTINES</div>
 	<div id="droutines"></div>
 	<div class="dhead">PROGRESS</div>
@@ -401,7 +400,7 @@ input.plain{
      sessions:[{d,r,sets:{name:{w,r:[s1,s2]}}}],   // r entries may be null = not logged
      cal:{b,d:{date:[kcal|{v,n}]}}, wt:[{d,kg}] }
    ================================================================= */
-var KEY = 'wapp', ADHOC = 'Ad-hoc';
+var KEY = 'wapp';
 var S, view = {t:'session', r:null};
 var fcard, fbody, rows, titleEl, subEl;
 
@@ -669,8 +668,6 @@ function renderSession(){
 function renderProgress(){
 	var rname = view.r, routine = routineByName(rname);
 	var names = routine ? routine.ex.slice() : [];
-	if(!routine) S.sessions.forEach(function(s){ if(s.r === rname) Object.keys(s.sets).forEach(function(n){ if(names.indexOf(n) < 0) names.push(n); }); });
-
 	var html = '';
 	names.forEach(function(n){
 		var hist = histFor(n, false);
@@ -708,9 +705,6 @@ function renderDrawer(){
 		h += '<button class="drow' + (view.t === 'progress' && view.r === r.name ? ' sel' : '') + '" data-act="progress" data-n="' + esc(r.name) + '">'
 			+ esc(r.name) + '<span class="sub num">' + sessCount(r.name) + ' sessions</span></button>';
 	});
-	if(sessCount(ADHOC))
-		h += '<button class="drow' + (view.t === 'progress' && view.r === ADHOC ? ' sel' : '') + '" data-act="progress" data-n="' + ADHOC + '">'
-			+ ADHOC + '<span class="sub num">' + sessCount(ADHOC) + ' sessions</span></button>';
 	document.getElementById('dprogress').innerHTML = h;
 }
 
@@ -1070,7 +1064,7 @@ function saveRoutine(){
 			r.name = name;
 		}
 	}else{
-		if(clash || name === ADHOC) return;
+		if(clash) return;
 		r = {name:name, ex:[]};
 		S.routines.push(r);
 	}
@@ -1127,7 +1121,7 @@ function toggleTheme(){
 
 function reloadState(){                                  // rehydrate: frozen mobile tabs hold stale state
 	S = load();
-	if(view.t === 'session' && !routineByName(view.r) && view.r !== ADHOC) view.r = suggested();
+	if(view.t === 'session' && !routineByName(view.r)) view.r = suggested();
 	render();
 }
 
@@ -1159,7 +1153,6 @@ document.addEventListener('DOMContentLoaded', function(){
 
 		if(act === 'menu') document.documentElement.classList.toggle('is-open');
 		else if(act === 'routine'){ view = {t:'session', r:n}; render(); document.documentElement.classList.remove('is-open'); }
-		else if(act === 'adhoc'){ view = {t:'session', r:ADHOC}; render(); document.documentElement.classList.remove('is-open'); }
 		else if(act === 'progress'){ view = {t:'progress', r:n}; render(); document.documentElement.classList.remove('is-open'); }
 		else if(act === 'confirm') confirmSet(n, +t.getAttribute('data-s'));
 		else if(act === 'edit') openStepper(n, +t.getAttribute('data-s'));
