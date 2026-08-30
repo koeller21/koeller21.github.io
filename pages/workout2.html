@@ -762,6 +762,16 @@ function stepRefresh(){
 	if(w) w.innerHTML = stepState.w + '<small> kg</small>';
 	if(r) r.innerHTML = stepState.reps + '<small> reps</small>';
 }
+/* the tappable value button, rebuilt from stepState (never recomputed from targets) */
+function valBtn(f){
+	var b = document.createElement('button');
+	b.className = 'val num';
+	b.id = f === 'w' ? 'stw' : 'str';
+	b.setAttribute('data-act', 'typeval');
+	b.setAttribute('data-f', f);
+	b.innerHTML = f === 'w' ? stepState.w + '<small> kg</small>' : stepState.reps + '<small> reps</small>';
+	return b;
+}
 
 function openDetail(n){
 	var def = exByName(n);
@@ -1173,15 +1183,20 @@ document.addEventListener('DOMContentLoaded', function(){
 			var f2 = t.getAttribute('data-f');
 			var inp = document.createElement('input');
 			inp.type = 'text'; inp.inputMode = f2 === 'w' ? 'decimal' : 'numeric';
+			inp.className = 'num';
 			inp.value = f2 === 'w' ? stepState.w : stepState.reps;
 			t.replaceWith(inp); inp.focus(); inp.select();
+			var committed = false;
 			var commit = function(){
+				if(committed) return;                     // blur + Enter must not double-fire
+				committed = true;
 				var v = parseFloat(String(inp.value).replace(',', '.'));
 				if(!isNaN(v) && v >= 0){ if(f2 === 'w') stepState.w = num(v); else stepState.reps = Math.max(1, Math.round(v)); }
-				openStepper(stepState.n, stepState.si);   // rebuild card (keeps state)
+				inp.replaceWith(valBtn(f2));              // restore just this control; keep the typed value
 			};
 			inp.addEventListener('blur', commit);
-			inp.addEventListener('keydown', function(ev){ if(ev.key === 'Enter') inp.blur(); });
+			inp.addEventListener('change', commit);       // iOS "Done" on the number pad
+			inp.addEventListener('keydown', function(ev){ if(ev.key === 'Enter'){ ev.preventDefault(); commit(); } });
 		}
 		else if(act === 'stsave') logSet();
 		else if(act === 'hdel') delHistEntry(n, t.getAttribute('data-d'));
