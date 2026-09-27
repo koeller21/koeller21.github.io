@@ -87,6 +87,7 @@ nav>.routine-link { color:var(--label-2); font-size:14px; }
 .exercise-toggle[aria-expanded="true"]>.icon { transform:rotate(90deg); }
 .history-button .icon { width:17px; height:17px; }
 .exercise-context { display:flex; flex-wrap:wrap; gap:4px 16px; padding:0 18px 14px; color:var(--label-2); font-size:12px; font-variant-numeric:tabular-nums; }
+.recovery-link { color:var(--label-2); font-size:12px; padding:8px 0; text-decoration:underline; text-underline-offset:3px; }
 .set-form { padding:14px 18px; display:grid; grid-template-columns:40px minmax(0,1fr) minmax(0,.7fr) auto; align-items:end; gap:12px; border-top:1px solid var(--sep); }
 .set-form .set-number { align-self:end; padding-bottom:14px; }
 .set-number { color:var(--label-2); font-size:12px; align-self:center; white-space:nowrap; }
@@ -208,6 +209,8 @@ button.set-done:active:not(:disabled) { transform:scale(.95); }
 .unsaved-prompt { padding:16px 24px; background:var(--dialog-selection); border-bottom:1px solid var(--dialog-border); }
 .unsaved-prompt p { font-weight:600; margin-bottom:8px; }
 .unsaved-prompt>div { display:flex; gap:8px; flex-wrap:wrap; }
+#sheet-content .check-option { display:flex; align-items:center; gap:10px; min-height:44px; cursor:pointer; }
+#sheet-content .check-option input { width:18px; height:18px; min-height:0; margin:0; accent-color:var(--dialog-accent); }
 .field-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin-bottom:12px; }
 .action-list { display:flex; flex-direction:column; }
 .action-list button { text-align:left; border-bottom:1px solid var(--sep); border-radius:0; padding:14px 8px; text-decoration:none; overflow-wrap:anywhere; font-weight:400; }

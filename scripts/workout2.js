@@ -1,5 +1,5 @@
 'use strict';
-const M = WorkoutModel, KEY = 'wapp';
+const M = WorkoutModel, KEY = 'wapp-v4';
 const $ = id => document.getElementById(id);
 const esc = value => String(value ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const formatDate = d => d.split('-').reverse().join('.');
@@ -66,9 +66,9 @@ function prefill(key,slot){
  const entry=session?.entries[key];
  if(entry?.sets[slot])return entry.sets[slot];
  const target=M.nextTarget(def,history,session?.d || M.today());
- const previous=history.filter(h=>h.session!==session?.id).at(-1);
- const last=previous?.sets[slot] || previous?.sets.find(Boolean);
- return {w:target?.w ?? entry?.sets.find(Boolean)?.w ?? last?.w ?? '',reps:target?.reps ?? last?.reps ?? def.min};
+ const prior=history.filter(h=>h.session!==session?.id && h.status==='finished' && h.d<(session?.d || M.today()));
+ const last=prior.findLast(h=>h.sets[slot])?.sets[slot];
+ return target?.sets[slot] || last || {w:entry?.sets.find(Boolean)?.w ?? '',reps:def.min};
 }
 function chooseActive(){
  const session=selectedSession(),keys=currentNames();
@@ -87,7 +87,7 @@ function cardHTML(key){
  let html=`<article class="exercise-card${expanded?' is-active':''}${logged===2?' is-complete':''}" id="card-${key}" data-key="${key}">
   <div class="exercise-heading">${button('expand',`<span class="exercise-name">${esc(def.name)}</span><span class="exercise-state">${logged===2?icon('check'):''}${status}</span>${icon('chevron')}`,`data-key="${key}" aria-expanded="${expanded}" aria-controls="sets-${key}" aria-label="${esc(def.name)}, ${logged} of 2 sets logged${entry?.skipped?', remaining skipped':''}"`,'exercise-toggle')}
   ${button('detail',icon('history'),`data-key="${key}" aria-label="History for ${esc(def.name)}" title="Exercise history"`,'icon-button history-button')}</div>
-  <p class="exercise-context"><span>${target ? `Suggested ${target.w} kg × ${target.reps}` : `${def.min}–${def.max} reps`}</span>${expanded&&last ? `<span>Last: ${last.sets.filter(Boolean).map(setText).join(' / ')}</span>` : ''}</p>
+  <p class="exercise-context"><span>${def.min}–${def.max} reps</span>${target?.increase ? `<span>Next: ${[...new Set(target.sets.map(set=>set.w))].join(' / ')} kg</span>` : expanded&&last ? `<span>Last: ${last.sets.filter(Boolean).map(setText).join(' / ')}</span>` : ''}${expanded&&target?.review ? button('training-help','Check recovery','','recovery-link') : ''}</p>
   <div id="sets-${key}" ${expanded?'':'hidden'}>`;
  for(let slot=0;slot<2;slot++){
   const set=entry?.sets[slot],editing=editingSet?.key===key && editingSet.slot===slot;
@@ -122,7 +122,7 @@ function patchCards(){
 function renderDrawer(){
  const html=state.routines.filter(r=>!r.archived).map(r=>{
   const stats=ix.routineStats.get(r.id),current=r.id===routineId;
-  return button('routine',`<span class="routine-name">${esc(r.name)}</span><span class="routine-meta">${stats.active ? 'In progress' : stats.last ? 'Last '+formatDate(stats.last) : 'Not started'}</span>`,`data-id="${r.id}" ${current ? 'aria-current="page"' : ''}`,'routine-link');
+  return button('routine',`<span class="routine-name">${esc(r.name)}</span><span class="routine-meta">${r.optional?'Optional · ':''}${stats.active ? 'In progress' : stats.last ? 'Last '+formatDate(stats.last) : 'Not started'}</span>`,`data-id="${r.id}" ${current ? 'aria-current="page"' : ''}`,'routine-link');
  }).join('');
  if($('routines').innerHTML!==html)$('routines').innerHTML=html;
 }
@@ -257,10 +257,10 @@ function showBackup(){
  sheet('Backup & restore',`<p class="panel-intro">Saved in this browser.</p><dl class="data-summary"><div><dt>Workouts</dt><dd>${state.sessions.length}</dd></div><div><dt>Routines</dt><dd>${state.routines.length}</dd></div><div><dt>Exercises</dt><dd>${state.ex.length}</dd></div></dl><section class="settings-section"><h3>Export</h3>${button('export',icon('download')+'<span>Download backup</span>','','secondary icon-label')}</section><section class="settings-section"><h3>Import</h3><p>Replaces your current data.</p>${button('import',icon('upload')+'<span>Choose backup</span>','','secondary icon-label')}</section>`);
 }
 function showRules(){
- sheet('Progression rules','<ol class="rules"><li><strong>Add weight</strong><p>Set 1 hits the maximum; set 2 hits the minimum at the same or a heavier weight.</p></li><li><strong>Add a rep</strong><p>Set 1 is in range: keep the weight, add one rep up to the maximum.</p></li><li><strong>Repeat</strong><p>Below the minimum? Keep the weight and aim for the minimum.</p></li><li><strong>Deload</strong><p>Three qualifying workouts below the minimum: drop one increment.</p></li></ol><details class="settings-details"><summary>How targets work</summary><p>Two working sets. Only finished workouts before the current workout’s date affect suggestions. Each set keeps its own weight. Workouts without set 1 stay in history but don’t affect targets. Set increase to 0 kg to disable suggestions.</p></details>');
+ sheet('Progression rules','<ol class="rules"><li><strong>Build reps</strong><p>Keep your load. Add reps within the range when ready.</p></li><li><strong>Add weight</strong><p>Both sets at the top of the range? Try the smallest increase and start at the lower end.</p></li><li><strong>Review a plateau</strong><p>After three comparable workouts without improvement, check rest, technique and recovery. Load never drops automatically.</p></li></ol><details class="settings-details"><summary>Training guide</summary><p>Train A → B → C across the week, with a rest day between sessions. Shoulders & Arms is optional when recovered. Start with one working set per exercise if the extra volume is too much.</p><p>Two working sets per exercise, leaving 1–2 good reps in reserve. Warm up separately. Rest 2–3 minutes for compound lifts and 1–2 minutes for isolation work.</p><p>Targets assume consistent technique and effort. Only finished workouts before the current workout’s date count; incomplete exercises do not advance the load. Each set keeps its own weight. Adjust increases to your equipment; 0 kg disables suggestions.</p></details>');
 }
 function showManager(){
- const rows=(items,act)=>items.map(item=>button(act,`<span><strong>${esc(item.name)}</strong><small>${item.archived?'Archived':item.ex?item.ex.length+' exercises':`${item.min}–${item.max} reps · ${item.inc?'+'+item.inc+' kg':'Progression off'}`}</small></span>${icon('chevron')}`,`data-id="${item.id}"`,'manager-row')).join('');
+ const rows=(items,act)=>items.map(item=>button(act,`<span><strong>${esc(item.name)}</strong><small>${item.archived?'Archived':item.ex?(item.optional?'Optional · ':'')+item.ex.length+' exercises':`${item.min}–${item.max} reps · ${item.inc?'+'+item.inc+' kg':'Progression off'}`}</small></span>${icon('chevron')}`,`data-id="${item.id}"`,'manager-row')).join('');
  sheet('Exercises & routines',`<div class="manager-grid"><section><div class="section-heading"><h3>Routines</h3>${button('edit-routine',icon('plus')+'<span>New</span>','aria-label="New routine"','text-button icon-label')}</div><div class="action-list">${rows(state.routines,'edit-routine')||'<p class="muted">No routines yet.</p>'}</div></section><section><div class="section-heading"><h3>Exercises</h3>${button('edit-exercise',icon('plus')+'<span>New</span>','aria-label="New exercise"','text-button icon-label')}</div><div class="action-list">${rows(state.ex,'edit-exercise')||'<p class="muted">No exercises yet.</p>'}</div></section></div>`);
 }
 
@@ -293,8 +293,8 @@ function showExerciseEditor(key=null,addToSession=false){
 function showRoutineEditor(key=null){
  if(key&&!ix.routines.has(key)){closeSheet();return;}
  const routine=ix.routines.get(key);
- routineDraft={id:key,name:routine?.name||'',ex:routine?.ex.filter(k=>!ix.exercises.get(k).archived).slice()||[]};
- sheet(key?'Edit routine':'New routine',`<form data-form="routine" novalidate><label>Name<input name="name" value="${esc(routineDraft.name)}" maxlength="100" required></label><h3>Exercise order</h3><div id="routine-order"></div><h3>Add exercises</h3><div id="routine-available" class="action-list"></div><p class="field-error" role="alert" hidden></p><button type="submit" class="primary">Save routine</button></form>${key ? button(routine.archived?'restore-routine':'archive-routine',routine.archived?'Restore routine':'Archive routine',`data-id="${key}"`,'text-button danger') : ''}${key?'<p class="small muted">Order changes apply to new workouts.</p>':''}`,renderRoutineOrder,'editor');
+ routineDraft={id:key,name:routine?.name||'',optional:routine?.optional||false,ex:routine?.ex.filter(k=>!ix.exercises.get(k).archived).slice()||[]};
+ sheet(key?'Edit routine':'New routine',`<form data-form="routine" novalidate><label>Name<input name="name" value="${esc(routineDraft.name)}" maxlength="100" required></label><label class="check-option"><input type="checkbox" name="optional" ${routineDraft.optional?'checked':''}>Optional day</label><h3>Exercise order</h3><div id="routine-order"></div><h3>Add exercises</h3><div id="routine-available" class="action-list"></div><p class="field-error" role="alert" hidden></p><button type="submit" class="primary">Save routine</button></form>${key ? button(routine.archived?'restore-routine':'archive-routine',routine.archived?'Restore routine':'Archive routine',`data-id="${key}"`,'text-button danger') : ''}${key?'<p class="small muted">Order changes apply to new workouts.</p>':''}`,renderRoutineOrder,'editor');
 }
 function renderRoutineOrder(){
  $('routine-order').innerHTML=routineDraft.ex.map((key,i)=>`<div class="order-row"><span>${i+1}. ${esc(ix.exercises.get(key).name)}</span><div>${button('move-up','↑',`data-key="${key}" ${i===0?'disabled':''} aria-label="Move ${esc(ix.exercises.get(key).name)} up"`)}${button('move-down','↓',`data-key="${key}" ${i===routineDraft.ex.length-1?'disabled':''} aria-label="Move ${esc(ix.exercises.get(key).name)} down"`)}${button('remove-from-routine','Remove',`data-key="${key}" aria-label="Remove ${esc(ix.exercises.get(key).name)} from routine"`)}</div></div>`).join('') || '<p class="muted">Choose exercises below.</p>';
@@ -367,8 +367,8 @@ document.addEventListener('submit',event=>{
   const name=inputs.name.value.trim(),key=routineDraft.id;
   if(!name){fieldError(form,'Enter a routine name.',inputs.name);return;}
   if(state.routines.some(r=>r.id!==key&&r.name.toLowerCase()===name.toLowerCase())){fieldError(form,'A routine with this name already exists, including archived routines.',inputs.name);return;}
-  const savedId=key||M.id(),order=routineDraft.ex.slice();
-  commit('Routine saved.',s=>{let r=s.routines.find(r=>r.id===key);if(!r){r={id:savedId,archived:false};s.routines.push(r);}Object.assign(r,{name,ex:order});},{after:()=>{if(!key){routineId=savedId;mode='workout';activeExercise=null;setDrafts.clear();}if(sheetStack.length>1)backSheet();else closeSheet();}});
+  const savedId=key||M.id(),order=routineDraft.ex.slice(),optional=inputs.optional.checked;
+  commit('Routine saved.',s=>{let r=s.routines.find(r=>r.id===key);if(!r){r={id:savedId,archived:false};s.routines.push(r);}Object.assign(r,{name,ex:order,optional});},{after:()=>{if(!key){routineId=savedId;mode='workout';activeExercise=null;setDrafts.clear();}if(sheetStack.length>1)backSheet();else closeSheet();}});
  }
 });
 
@@ -398,6 +398,7 @@ document.addEventListener('click',event=>{
  else if(act==='detail')pushSheet(()=>showDetail(key));
  else if(act==='delete-history')commit('History entry deleted.',s=>M.deleteHistory(s,id,key),{after:refreshSheet});
  else if(act==='settings'){closeDrawer();pushSheet(showSettings);}
+ else if(act==='training-help')pushSheet(showRules);
  else if(act==='settings-category')selectSettingsCategory(el.dataset.category);
  else if(act==='edit-exercise')pushSheet(()=>showExerciseEditor(id||null));
  else if(act==='edit-routine'){if(el.closest('#drawer'))closeDrawer();pushSheet(()=>showRoutineEditor(id||null));}

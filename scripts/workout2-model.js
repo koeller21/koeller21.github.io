@@ -18,47 +18,33 @@ function exerciseRules(e){ return name(e.name) && Number.isInteger(e.min) && Num
 
 function defaults(){
  const definitions = [
-  ['Overhead Press',6,8,2.5],['Incline Chest Press',6,8,2.5],['Triceps Extension',8,10,1.25],
-  ['Lateral Raises',10,12,1.25],['Abs',12,20,1.25],['Lat Pulldown',6,8,2.5],['Seated Row',8,10,2.5],
-  ['Deadlift',5,8,2.5],['Biceps Curl',8,10,1.25],['Hack Squat',8,12,2.5],['Leg Extension',10,15,1.25],['Leg Curl',8,10,1.25]
+  ['incline_press','Incline Chest Press',8,12,2.5],['chest_press','Chest Press',8,12,2.5],
+  ['pulldown','Lat Pulldown',8,12,2.5],['row','Chest-supported Row',8,12,2.5],
+  ['lateral_raise','Cable Lateral Raise',12,20,0.5],['leg_curl','Leg Curl',10,15,2.5],
+  ['leg_extension','Leg Extension',10,15,2.5],['fly','Cable Fly',10,15,1],
+  ['rear_delt','Reverse Pec Deck',12,20,2.5],['curl','Biceps Curl',10,15,1],
+  ['triceps','Triceps Extension',10,15,1],
+  ['crunch','Cable Crunch',10,20,2.5]
  ];
- return {v:3, ex:definitions.map((e,i)=>({id:'ex_'+i,name:e[0],min:e[1],max:e[2],inc:e[3],archived:false})),
-  routines:[{id:'push',name:'Push',ex:[0,1,2,3,4]},{id:'pull',name:'Pull',ex:[5,6,7,8,4]},{id:'legs',name:'Legs',ex:[9,10,11]}].map(r=>({...r,ex:r.ex.map(i=>'ex_'+i),archived:false})), sessions:[]};
-}
-
-/* Preserve existing v2 workout history when upgrading the set representation. */
-function fromV2(p){
- assert(Array.isArray(p.ex) && Array.isArray(p.routines) && Array.isArray(p.sessions),'Missing workout lists.');
- assert(p.ex.every(e=>object(e) && exerciseRules(e)) && unique(p.ex.map(e=>e.name)),'Invalid or duplicate exercises.');
- assert(p.routines.every(r=>object(r) && name(r.name) && Array.isArray(r.ex) && r.ex.every(name) && unique(r.ex)) && unique(p.routines.map(r=>r.name)),'Invalid routines.');
- const s={v:3,ex:p.ex.map(e=>({id:id(),name:e.name,min:e.min,max:e.max,inc:e.inc,archived:false})),routines:[],sessions:[]};
- const exercise = n => { let e=s.ex.find(x=>x.name===n); if(!e){ e={id:id(),name:n,min:1,max:20,inc:0,archived:true};s.ex.push(e); } return e.id; };
- s.routines=p.routines.map(r=>({id:id(),name:r.name,ex:r.ex.map(exercise),archived:false}));
- p.sessions.forEach(old=>{
-  assert(object(old) && date(old.d) && name(old.r) && object(old.sets),'Invalid workout session.');
-  let routine=s.routines.find(r=>r.name===old.r);
-  if(!routine){routine={id:id(),name:old.r,ex:[],archived:true};s.routines.push(routine);}
-  const entries={}, ex=[];
-  Object.keys(old.sets).forEach(n=>{
-   const value=old.sets[n];
-   assert(name(n) && object(value) && number(value.w,0,100000) && Array.isArray(value.r) && value.r.length===2 && value.r.every(r=>r===null || (Number.isInteger(r) && number(r,1,1000))),'Invalid logged set.');
-   const key=exercise(n);ex.push(key);entries[key]={sets:value.r.map(reps=>reps===null ? null : {w:value.w,reps}),skipped:false};
-  });
-  const complete=ex.length>0 && routine.ex.every(key=>own(entries,key) && entries[key].sets.every(Boolean));
-  const active=old.d===today() && !complete;
-  s.sessions.push({id:id(),d:old.d,r:routine.id,ex:active ? [...new Set([...routine.ex,...ex])] : ex,entries,status:active ? 'active' : 'finished'});
- });
- return s;
+ // Two working sets per exercise. A/B/C: chest 8, back 8, side delts 6,
+ // quads 6, hamstrings 6, abs 4; optional day is additional work.
+ const routines=[
+  {id:'full_a',name:'Full Body A',optional:false,ex:['incline_press','pulldown','leg_extension','leg_curl','lateral_raise','fly','curl','crunch']},
+  {id:'full_b',name:'Full Body B',optional:false,ex:['chest_press','row','leg_curl','leg_extension','lateral_raise','rear_delt','triceps']},
+  {id:'full_c',name:'Full Body C',optional:false,ex:['incline_press','pulldown','row','leg_extension','leg_curl','lateral_raise','crunch']},
+  {id:'optional',name:'Shoulders & Arms',optional:true,ex:['lateral_raise','rear_delt','curl','triceps']}
+ ];
+ return {v:4,ex:definitions.map(([id,name,min,max,inc])=>({id,name,min,max,inc,archived:false})),routines:routines.map(r=>({...r,archived:false})),sessions:[]};
 }
 
 function normalize(input){
  assert(object(input),'Expected a workout data object.');
- const p=input.v===2 ? fromV2(input) : input;
- assert(p.v===3 && Array.isArray(p.ex) && Array.isArray(p.routines) && Array.isArray(p.sessions),'Unsupported workout format.');
+ const p=input;
+ assert(p.v===4 && Array.isArray(p.ex) && Array.isArray(p.routines) && Array.isArray(p.sessions),'Unsupported workout format.');
  assert(p.ex.every(e=>object(e) && identifier(e.id) && exerciseRules(e) && typeof e.archived==='boolean'),'Invalid exercise definition.');
  assert(unique(p.ex.map(e=>e.id)) && unique(p.ex.map(e=>e.name.trim().toLowerCase())),'Duplicate exercises.');
  const exIds=new Set(p.ex.map(e=>e.id));
- assert(p.routines.every(r=>object(r) && identifier(r.id) && name(r.name) && typeof r.archived==='boolean' && Array.isArray(r.ex) && unique(r.ex) && r.ex.every(key=>exIds.has(key))),'Invalid routine definition.');
+ assert(p.routines.every(r=>object(r) && identifier(r.id) && name(r.name) && typeof r.archived==='boolean' && typeof r.optional==='boolean' && Array.isArray(r.ex) && unique(r.ex) && r.ex.every(key=>exIds.has(key))),'Invalid routine definition.');
  assert(unique(p.routines.map(r=>r.id)) && unique(p.routines.map(r=>r.name.trim().toLowerCase())),'Duplicate routines.');
  const routineIds=new Set(p.routines.map(r=>r.id));
  const sessions=p.sessions.map(s=>{
@@ -75,7 +61,7 @@ function normalize(input){
  assert(unique(sessions.map(s=>s.id)),'Duplicate session IDs.');
  assert(unique(sessions.filter(s=>s.status==='active').map(s=>s.r)),'A routine has multiple unfinished workouts.');
  sessions.sort((a,b)=>a.d.localeCompare(b.d));
- return {v:3,ex:p.ex.map(e=>({id:e.id,name:e.name.trim(),min:e.min,max:e.max,inc:e.inc,archived:e.archived})),routines:p.routines.map(r=>({id:r.id,name:r.name.trim(),ex:r.ex.slice(),archived:r.archived})),sessions};
+ return {v:4,ex:p.ex.map(e=>({id:e.id,name:e.name.trim(),min:e.min,max:e.max,inc:e.inc,archived:e.archived})),routines:p.routines.map(r=>({id:r.id,name:r.name.trim(),ex:r.ex.slice(),archived:r.archived,optional:r.optional})),sessions};
 }
 
 function stats(session){
@@ -106,17 +92,22 @@ function suggested(state, ix=index(state)){
  const available=state.routines.filter(r=>!r.archived);
  const active=state.sessions.slice().reverse().find(s=>s.status==='active' && available.some(r=>r.id===s.r));
  if(active) return active.r;
- return available.slice().sort((a,b)=>(ix.routineStats.get(a.id).last||'').localeCompare(ix.routineStats.get(b.id).last||''))[0]?.id || null;
+ const main=available.filter(r=>!r.optional);
+ return (main.length?main:available).slice().sort((a,b)=>(ix.routineStats.get(a.id).last||'').localeCompare(ix.routineStats.get(b.id).last||''))[0]?.id || null;
 }
 function nextTarget(def, history, day=today()){
- const prior=history.filter(e=>e.d<day && e.status==='finished' && e.sets[0]);
+ const prior=history.filter(e=>e.d<day && e.status==='finished');
  if(!def.inc || !prior.length) return null;
- const last=prior[prior.length-1],first=last.sets[0],second=last.sets[1];
- if(first.reps>=def.max && second && second.w>=first.w && second.reps>=def.min) return {w:round(first.w+def.inc),reps:def.min};
- if(first.reps>=def.min) return {w:first.w,reps:Math.min(first.reps+1,def.max)};
- let stalls=0;
- for(let i=prior.length-1;i>=0 && prior[i].sets[0].reps<def.min;i--) stalls++;
- return {w:stalls>=3 ? Math.max(0,round(first.w-def.inc)) : first.w,reps:def.min};
+ const last=prior.at(-1);
+ // A partial session must not trigger a load increase or revive an older target.
+ if(!last.sets.every(Boolean)) return null;
+ const increase=last.sets.every(set=>set.reps>=def.max);
+ const sets=last.sets.map(set=>({w:increase?round(set.w+def.inc):set.w,reps:increase?def.min:Math.max(def.min,Math.min(set.reps,def.max))}));
+ const recent=prior.slice(-3),total=e=>e.sets.reduce((n,set)=>n+set.reps,0);
+ // Only compare the same two loads. A new load or partial session resets this check.
+ const comparable=recent.length===3 && recent.every(e=>e.sets.every((set,i)=>set && set.w===last.sets[i].w));
+ const review=!increase && comparable && total(recent[1])<=total(recent[0]) && total(recent[2])<=total(recent[1]);
+ return {sets,increase,review};
 }
 function estimate(sets){ return Math.max(...sets.filter(Boolean).map(s=>s.w*(1+s.reps/30))); }
 function changePercent(first,last){return first>0 ? Math.round((last/first-1)*100) : null;}
