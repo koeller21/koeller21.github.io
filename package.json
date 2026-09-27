@@ -1,0 +1,10 @@
+{
+  "name": "koeller21-site-tests",
+  "private": true,
+  "scripts": {
+    "test": "node --test tests/workout2*.test.js"
+  },
+  "devDependencies": {
+    "jsdom": "26.1.0"
+  }
+}
