@@ -246,11 +246,11 @@ function selectSettingsCategory(key){
 }
 function showAppearance(){
  const theme=document.documentElement.dataset.theme;
- sheet('Appearance',`<div class="theme-options" role="group" aria-label="Color theme">${['light','dark'].map(value=>button('theme',`<span class="theme-preview" data-preview="${value}" aria-hidden="true"><span></span><span></span></span><span class="theme-label">${icon(value==='light'?'sun':'moon')}<strong>${value==='light'?'Light':'Dark'}</strong>${icon('check')}</span>`,`data-theme="${value}" aria-pressed="${theme===value}"`,'theme-option')).join('')}</div>`);
+ sheet('Appearance',`<div class="theme-options" role="group" aria-label="Color theme">${['light','dark'].map(value=>button('theme',`<span class="theme-preview" data-preview="${value}" aria-hidden="true"><span></span><span></span></span><span class="theme-label">${icon(value==='light'?'sun':'moon')}<strong>${value==='light'?'Light':'Midnight'}</strong>${icon('check')}</span>`,`data-theme="${value}" aria-pressed="${theme===value}"`,'theme-option')).join('')}</div>`);
 }
 function applyTheme(theme){
  document.documentElement.dataset.theme=theme;
- document.querySelector('meta[name="theme-color"]').content=theme==='dark'?'#0d0d0d':'#ffffff';
+ document.querySelector('meta[name="theme-color"]').content=theme==='dark'?'#172337':'#ffffff';
  for(const control of content.querySelectorAll('[data-act="theme"]'))control.setAttribute('aria-pressed',String(control.dataset.theme===theme));
 }
 function showBackup(){
@@ -444,7 +444,7 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden){
 }});
 try{
  storedSnapshot=localStorage.getItem(KEY);state=load(storedSnapshot);ix=M.index(state);routineId=M.suggested(state,ix);render();
- document.querySelector('meta[name="theme-color"]').content=document.documentElement.dataset.theme==='dark'?'#0d0d0d':'#ffffff';
+ document.querySelector('meta[name="theme-color"]').content=document.documentElement.dataset.theme==='dark'?'#172337':'#ffffff';
  setDrawer(false);
 }catch(error){
  loadFailed=true;state=M.defaults();ix=M.index(state);

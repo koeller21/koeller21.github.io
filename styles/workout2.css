@@ -1,14 +1,15 @@
 :root {
  color-scheme:dark;
  --font:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
- --base:#0d0d0d; --drawer-bg:#131313; --label:#ececec; --label-2:#a4a4a4;
- --sep:rgba(255,255,255,.12); --border-strong:rgba(255,255,255,.3);
- --fill:#212121; --fill-press:#2b2b2b; --card-bg:#171717;
- --cta:#ececec; --cta-label:#0d0d0d; --tint:#ececec; --green:#10a37f; --red:#ef4146;
- --done-bg:#163a2e; --done-label:#8ce5b6;
- --dialog-bg:#24282f; --dialog-nav:#1b1f25; --dialog-raised:#303640; --dialog-border:#4b5360;
- --dialog-text:#f5f7fb; --dialog-muted:#bdc5d1; --dialog-accent:#c0d4ff; --dialog-selection:#334766;
- --dialog-control-border:#798493; --dialog-danger:#ffa1a5;
+ --base:#172337; --drawer-bg:#131e30; --label:#edf3fc; --label-2:#b1bfd3;
+ --sep:#344861; --border-strong:#647c9e;
+ --fill:#263951; --fill-press:#314865; --card-bg:#1e2e45;
+ --cta:#d6e5ff; --cta-label:#172337; --tint:#a9c7ff; --green:#73d7b1; --red:#ffa0aa;
+ --done-bg:#183e3b; --done-label:#a0e8c6;
+ --dialog-bg:#253750; --dialog-nav:#1b2b42; --dialog-raised:#304764; --dialog-border:#526985;
+ --dialog-text:#f2f6fd; --dialog-muted:#c0cde0; --dialog-accent:#c3d8ff; --dialog-selection:#344f75;
+ --dialog-control-border:#8da5c5; --dialog-danger:#ffb4bd;
+ --backdrop:rgba(6,13,25,.56);
  --dw:min(82vw,280px); --ease:cubic-bezier(.32,.72,0,1);
 }
 :root[data-theme="light"] {
@@ -21,6 +22,7 @@
  --dialog-bg:#ffffff; --dialog-nav:#f1f4f8; --dialog-raised:#f5f7fb; --dialog-border:#d4dbe5;
  --dialog-text:#152033; --dialog-muted:#536176; --dialog-accent:#214f9b; --dialog-selection:#e1ebfc;
  --dialog-control-border:#718096; --dialog-danger:#b42332;
+ --backdrop:rgba(0,0,0,.7);
 }
 *,*::before,*::after { box-sizing:border-box; }
 [hidden] { display:none !important; }
@@ -132,7 +134,7 @@ button.set-done:active:not(:disabled) { transform:scale(.95); }
  color:var(--label); background:var(--base); box-shadow:0 28px 100px #0008,0 0 0 1px #ffffff08;
 }
 #sheet[open] { display:flex; flex-direction:column; animation:sheet-in .15s ease-out; }
-#sheet::backdrop { background:rgba(0,0,0,.7); }
+#sheet::backdrop { background:var(--backdrop); }
 .sheet-layout { display:flex; flex:1; min-height:0; overflow:hidden; border-radius:inherit; }
 .sheet-main { display:flex; flex-direction:column; flex:1; min-width:0; min-height:0; }
 .sheet-header { display:flex; align-items:center; gap:12px; padding:20px 24px; border-bottom:1px solid var(--sep); }
@@ -187,9 +189,9 @@ button.set-done:active:not(:disabled) { transform:scale(.95); }
 .theme-preview { display:flex; height:128px; border:1px solid #9ba5b344; border-radius:7px; overflow:hidden; background:#fff; }
 .theme-preview span:first-child { width:28%; background:#f1f4f8; border-right:1px solid #9ba5b344; }
 .theme-preview span:last-child { flex:1; margin:18px 14px; border-top:8px solid #d5dce8; border-bottom:42px solid #f1f4f8; }
-.theme-preview[data-preview="dark"] { background:#24282f; }
-.theme-preview[data-preview="dark"] span:first-child { background:#1b1f25; }
-.theme-preview[data-preview="dark"] span:last-child { border-color:#4b5360; border-bottom-color:#303640; }
+.theme-preview[data-preview="dark"] { background:#172337; }
+.theme-preview[data-preview="dark"] span:first-child { background:#131e30; }
+.theme-preview[data-preview="dark"] span:last-child { border-color:#8da5c5; border-bottom-color:#263951; }
 .theme-label { display:flex; align-items:center; gap:8px; margin:16px 2px 4px; }
 .theme-label strong { flex:1; font-size:15px; font-weight:500; }
 .theme-label>.icon:last-child { visibility:hidden; }

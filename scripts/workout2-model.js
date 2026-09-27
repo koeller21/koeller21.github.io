@@ -19,12 +19,12 @@ function exerciseRules(e){ return name(e.name) && Number.isInteger(e.min) && Num
 function defaults(){
  const definitions = [
   ['incline_press','Incline Chest Press',8,12,2.5],['chest_press','Chest Press',8,12,2.5],
-  ['pulldown','Lat Pulldown',8,12,2.5],['row','Chest-supported Row',8,12,2.5],
-  ['lateral_raise','Cable Lateral Raise',12,20,0.5],['leg_curl','Leg Curl',10,15,2.5],
+  ['pulldown','Lat Pulldown',8,12,2.5],['row','Machine Rowing',8,12,2.5],
+  ['lateral_raise','Dumbbell Lateral Raise',12,20,0.5],['leg_curl','Leg Curl',10,15,2.5],
   ['leg_extension','Leg Extension',10,15,2.5],['fly','Cable Fly',10,15,1],
   ['rear_delt','Reverse Pec Deck',12,20,2.5],['curl','Biceps Curl',10,15,1],
   ['triceps','Triceps Extension',10,15,1],
-  ['crunch','Cable Crunch',10,20,2.5]
+  ['crunch','Machine Crunch',10,20,2.5]
  ];
  // Two working sets per exercise. A/B/C: chest 8, back 8, side delts 6,
  // quads 6, hamstrings 6, abs 4; optional day is additional work.

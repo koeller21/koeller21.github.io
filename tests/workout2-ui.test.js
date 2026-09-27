@@ -173,7 +173,7 @@ test('import cancellation and oversize rejection leave saved state untouched',as
 });
 test('appearance choices keep the document theme, selected option and browser tint consistent',t=>{
  const a=app(t);a.click('[data-act="settings"]');a.click('[data-category="appearance"]');a.click('button[data-theme="dark"]');
- assert.equal(a.d.documentElement.dataset.theme,'dark');assert.equal(a.w.localStorage.getItem('wtheme'),'dark');assert.equal(a.q('button[data-theme="dark"]').getAttribute('aria-pressed'),'true');assert.equal(a.q('meta[name="theme-color"]').content,'#0d0d0d');
+ assert.equal(a.d.documentElement.dataset.theme,'dark');assert.equal(a.w.localStorage.getItem('wtheme'),'dark');assert.equal(a.q('button[data-theme="dark"]').getAttribute('aria-pressed'),'true');assert.equal(a.q('meta[name="theme-color"]').content,'#172337');
  a.click('button[data-theme="light"]');assert.equal(a.d.documentElement.dataset.theme,'light');assert.equal(a.q('meta[name="theme-color"]').content,'#ffffff');assert.equal(a.q('button[data-theme="dark"]').getAttribute('aria-pressed'),'false');
 });
 
@@ -189,7 +189,7 @@ test('stale writes are rejected even if the storage event has not yet arrived',t
 });
 
 test('saved theme is applied on initialization without altering workout state',t=>{
- const a=app(t,{theme:'dark'});assert.equal(a.d.documentElement.dataset.theme,'dark');assert.equal(a.q('meta[name="theme-color"]').content,'#0d0d0d');assert.equal(a.w.localStorage.getItem('wapp-v4'),null);
+ const a=app(t,{theme:'dark'});assert.equal(a.d.documentElement.dataset.theme,'dark');assert.equal(a.q('meta[name="theme-color"]').content,'#172337');assert.equal(a.w.localStorage.getItem('wapp-v4'),null);
 });
 test('export downloads complete workout data with independent sets and no removed tracking fields',async t=>{
  const a=app(t);logFirst(a);let exported,filename;
