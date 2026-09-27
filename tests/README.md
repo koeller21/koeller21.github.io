@@ -16,10 +16,10 @@ The local page was verified in isolated headless Chrome at 320, 390, 768, 844, 9
 
 Native dialog Tab/Escape behavior, reduced motion, long names, and computed contrast were also checked. The redesigned dialog's destructive-action text against the unsaved-edit banner measures 5.42:1 in light mode and 4.88:1 in dark mode; input outlines against their fill measure 3.64:1 and 4.36:1 respectively. These targeted checks are not a full accessibility certification.
 
-The earlier workout pass verified logging, correction and finishing at 320, 390, 768 and 1280 px. The built-in browser runner has a Windows sandbox startup issue; the bundled Playwright runtime and isolated Chrome profiles provided browser verification. No personal browser profile or production workout data was accessed.
+The UI cleanup pass rechecked logging, correction, Undo, completion and reopening at 320, 390, 768 and 1280 px in both themes. Checkmark controls have 48 × 48 px mobile targets and retain descriptive accessible names. The 260 ms confirmation animation runs after saving, respects reduced motion, and does not delay moving to the next set. The redundant progress strip is removed; counts remain in the subtitle. Expanded progression details, invalid-input feedback, preserved sibling drafts and the notification/drawer overlap fix passed in Chrome, with no page errors or horizontal overflow. The built-in browser runner has a Windows sandbox startup issue; the bundled Playwright runtime and isolated Chrome profiles provided browser verification. No personal browser profile or production workout data was accessed.
 
 Switching to Exercises & routines took a median 12.7 ms across ten synchronous interaction-plus-layout measurements with Chrome CPU throttling set to 4×, using default workout data. These measurements exclude network latency and subsequent painting; they are not real-device interaction or frame-rate guarantees.
 
-The four production HTML/CSS/JS assets total 78,552 bytes uncompressed and 23,359 bytes with local gzip compression (favicon excluded). There are no runtime package dependencies, external fonts, icon downloads, or a build step.
+The four production HTML/CSS/JS assets total 78,542 bytes uncompressed and 23,136 bytes with local gzip compression (favicon excluded). There are no runtime package dependencies, external fonts, icon downloads, or a build step.
 
 Physical iOS/Android keyboard behavior and device-specific scrolling still require real-device checks; desktop mobile emulation does not establish those behaviors.

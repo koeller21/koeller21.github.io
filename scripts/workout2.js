@@ -8,7 +8,7 @@ let undo=null, sheetStack=[], sheetReturnFocus=null, routineDraft=null, draftDir
 const dialog=$('sheet'), content=$('sheet-content'), wide=matchMedia('(min-width: 900px)');
 const renderedCards=new WeakMap(), setDrafts=new Map();
 let settingsMode=false,settingsCategory=null,pendingSheetNavigation=null;
-const settingsSections=[['manager','Exercises & routines','dumbbell','Organize workouts and exercise targets'],['appearance','Appearance','sun','Choose a light or dark theme'],['backup','Backup & restore','download','Export or import your workout data'],['rules','Progression rules','chart','Understand your next-session targets']];
+const settingsSections=[['manager','Exercises & routines','dumbbell'],['appearance','Appearance','sun'],['backup','Backup & restore','download'],['rules','Progression rules','chart']];
 const icons={
  dumbbell:'<path d="M6 6v12M3 9v6M18 6v12M21 9v6M6 12h12"/>',
  sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/>',
@@ -83,9 +83,9 @@ function cardHTML(key){
  const expanded=activeExercise===key,logged=entry?.sets.filter(Boolean).length||0;
  const history=(ix.history.get(key)||[]).filter(h=>h.session!==session?.id),last=history.at(-1);
  const target=M.nextTarget(def,history,session?.d || M.today());
- const status=entry?.skipped ? 'Skipped' : logged===2 ? 'Complete' : `${logged}/2 sets`;
+ const status=entry?.skipped ? 'Skipped' : logged===2 ? 'Done' : `${logged}/2`;
  let html=`<article class="exercise-card${expanded?' is-active':''}${logged===2?' is-complete':''}" id="card-${key}" data-key="${key}">
-  <div class="exercise-heading">${button('expand',`<span class="exercise-name">${esc(def.name)}</span><span class="exercise-state">${logged===2?icon('check'):''}${status}</span>${icon('chevron')}`,`data-key="${key}" aria-expanded="${expanded}" aria-controls="sets-${key}"`,'exercise-toggle')}
+  <div class="exercise-heading">${button('expand',`<span class="exercise-name">${esc(def.name)}</span><span class="exercise-state">${logged===2?icon('check'):''}${status}</span>${icon('chevron')}`,`data-key="${key}" aria-expanded="${expanded}" aria-controls="sets-${key}" aria-label="${esc(def.name)}, ${logged} of 2 sets logged${entry?.skipped?', remaining skipped':''}"`,'exercise-toggle')}
   ${button('detail',icon('history'),`data-key="${key}" aria-label="History for ${esc(def.name)}" title="Exercise history"`,'icon-button history-button')}</div>
   <p class="exercise-context"><span>${target ? `Suggested ${target.w} kg × ${target.reps}` : `${def.min}–${def.max} reps`}</span>${expanded&&last ? `<span>Last: ${last.sets.filter(Boolean).map(setText).join(' / ')}</span>` : ''}</p>
   <div id="sets-${key}" ${expanded?'':'hidden'}>`;
@@ -97,13 +97,13 @@ function cardHTML(key){
     <span class="set-number">Set ${slot+1}</span>
     <label>Weight <span class="muted">kg</span><input name="weight" type="text" inputmode="decimal" autocomplete="off" enterkeyhint="next" value="${esc(val.w)}" required aria-label="${esc(def.name)}, set ${slot+1}, weight in kg"></label>
     <label>Reps<input name="reps" type="text" inputmode="numeric" autocomplete="off" enterkeyhint="done" value="${esc(val.reps)}" required aria-label="${esc(def.name)}, set ${slot+1}, reps"></label>
-    <button class="primary set-submit" type="submit" aria-label="${set?'Save':'Log'} ${esc(def.name)}, set ${slot+1}"><span class="set-action-label">${set ? 'Save' : 'Log set '+(slot+1)}</span><span class="set-action-short" aria-hidden="true">${set?'Save':'Log'}</span></button>
+    <button class="primary set-submit" type="submit" aria-label="${set?'Save':'Log'} ${esc(def.name)}, set ${slot+1}" title="${set?'Save':'Log'} set ${slot+1}">${icon('check')}<span class="set-action-label">${set ? 'Save' : 'Log'}</span></button>
     <p class="field-error" role="alert" hidden></p></form>`;
   }else{
-   html+=`<div class="set-summary"><span class="set-number">Set ${slot+1}</span><span class="${set ? 'logged' : 'muted'}">${set ? setText(set)+icon('check') : entry?.skipped ? 'Skipped' : 'Not logged'}</span>${editable ? button('edit-set',set ? 'Edit' : 'Enter',`data-key="${key}" data-slot="${slot}" aria-label="${set ? 'Edit' : 'Enter'} ${esc(def.name)}, set ${slot+1}"`) : ''}</div>`;
+   html+=`<div class="set-summary" data-slot="${slot}"><span class="set-number">Set ${slot+1}</span><span class="${set ? 'logged' : 'muted'}">${set ? setText(set) : entry?.skipped ? 'Skipped' : 'Not logged'}</span>${editable ? button('edit-set',set ? icon('check')+'<span class="set-action-label">Edit</span>' : 'Enter',`data-key="${key}" data-slot="${slot}" aria-label="${set ? 'Edit' : 'Enter'} ${esc(def.name)}, set ${slot+1}" title="${set ? 'Edit' : 'Enter'} set ${slot+1}"`,set?'set-done':'text-button') : set ? `<span class="set-done" role="img" aria-label="Logged">${icon('check')}</span>` : ''}</div>`;
   }
  }
- if(expanded&&editable){html+=`<div class="card-actions">${entry?.skipped ? button('unskip','Restore skipped sets',`data-key="${key}"`) : (!entry || entry.sets.some(s=>!s)) ? button('skip','Skip remaining sets',`data-key="${key}"`) : '<span class="logged small">Exercise complete</span>'}</div>`;}
+ if(expanded&&editable&&logged<2){html+=`<div class="card-actions">${entry?.skipped ? button('unskip','Restore skipped sets',`data-key="${key}"`) : button('skip','Skip remaining sets',`data-key="${key}"`)}</div>`;}
  return html+'</div></article>';
 }
 
@@ -138,15 +138,13 @@ function render(){
   if(mode==='workout'){
    chooseActive();patchCards();
    const stats=session ? M.stats(session) : {logged:0,total:currentNames().length*2,skipped:0};
-   const label=session?.status==='finished' ? 'Finished' : stats.logged ? 'In progress' : 'Ready to start';
-   $('subtitle').textContent=`${label} · ${stats.logged}/${stats.total} sets logged${stats.skipped ? ` · ${stats.skipped} skipped` : ''}${session && session.d!==M.today() ? ` · ${formatDate(session.d)}` : ''}`;
-   $('workout-progress').max=stats.total||1;$('workout-progress').value=stats.logged+stats.skipped;
-   $('workout-progress').setAttribute('aria-valuetext',`${stats.logged} logged, ${stats.skipped} skipped, ${stats.total} total sets`);
+   const label=session?.status==='finished' ? 'Finished · ' : stats.logged ? 'In progress · ' : '';
+   $('subtitle').textContent=`${label}${stats.logged}/${stats.total} sets${stats.skipped ? ` · ${stats.skipped} skipped` : ''}${session && session.d!==M.today() ? ` · ${formatDate(session.d)}` : ''}`;
    $('add-exercise').hidden=!canEdit();$('finish').hidden=!canEdit();$('finish').disabled=!stats.logged;
    $('reopen').hidden=session?.status!=='finished';$('new-workout').hidden=session?.status!=='finished';$('discard').hidden=session?.status!=='active';
    $('no-exercises').hidden=currentNames().length>0;
   }else renderProgress();
- }else{$('subtitle').textContent='Create a routine to start logging.';$('cards').replaceChildren();}
+ }else{$('subtitle').textContent='';$('cards').replaceChildren();}
  renderDrawer();
 }
 
@@ -164,8 +162,8 @@ function renderProgress(){
  $('progress-view').innerHTML=keys.map(key=>{
   const def=ix.exercises.get(key),history=ix.history.get(key)||[],values=history.map(h=>M.estimate(h.sets)),delta=values.length>1 ? M.changePercent(values[0],values.at(-1)) : null;
   return `<button class="progress-card" data-act="detail" data-key="${key}"><span class="progress-heading">${esc(def.name)}${def.archived?' <span class="muted small">Archived</span>':''}</span>${graph(values,def.name+' estimated strength trend')}
-   <span class="muted small">${values.length ? `Estimated 1RM ${Math.round(values.at(-1))} kg · ${values.length} logged workout${values.length===1?'':'s'} across routines` : 'No sets logged yet'}</span>${delta!==null ? `<span class="delta ${delta>0?'positive':delta<0?'negative':''}">${delta>0?'+':''}${delta}%</span>` : ''}</button>`;
- }).join('') || `<div class="empty-state">${icon('chart')}<h2>Your progress starts here</h2><p>Log your first sets to see exercise trends and workout history.</p>${button('view','Go to workout','data-view="workout"','secondary')}</div>`;
+   <span class="muted small">${values.length ? `Estimated 1RM ${Math.round(values.at(-1))} kg · ${values.length} workout${values.length===1?'':'s'}` : 'No sets logged yet'}</span>${delta!==null ? `<span class="delta ${delta>0?'positive':delta<0?'negative':''}">${delta>0?'+':''}${delta}%</span>` : ''}</button>`;
+ }).join('') || `<div class="empty-state">${icon('chart')}<h2>No progress yet</h2><p>Log a set to start.</p>${button('view','Go to workout','data-view="workout"','secondary')}</div>`;
 }
 
 function setDrawer(open){
@@ -198,7 +196,7 @@ document.addEventListener('keydown',event=>{
 });
 
 function settingsNavigation(){
- return settingsSections.map(([key,label,symbol,description])=>button('settings-category',`${icon(symbol)}<span><strong>${label}</strong><small>${description}</small></span>${icon('chevron')}`,`data-category="${key}" ${settingsCategory===key?'aria-current="page"':''}`,'settings-category')).join('');
+ return settingsSections.map(([key,label,symbol])=>button('settings-category',`${icon(symbol)}<span><strong>${label}</strong></span>${icon('chevron')}`,`data-category="${key}" ${settingsCategory===key?'aria-current="page"':''}`,'settings-category')).join('');
 }
 function syncSheetLayout(){
  dialog.classList.toggle('settings-dialog',settingsMode);
@@ -239,7 +237,7 @@ function showSettings(){
  settingsMode=true;
  if(wide.matches){selectSettingsCategory('manager');return;}
  settingsCategory=null;
- sheet('Settings',`<p class="panel-intro">Make Workout work for you.</p><nav class="settings-menu" aria-label="Settings sections">${settingsNavigation()}</nav>`);
+ sheet('Settings',`<nav class="settings-menu" aria-label="Settings sections">${settingsNavigation()}</nav>`);
 }
 function selectSettingsCategory(key){
  const renderer={manager:showManager,appearance:showAppearance,backup:showBackup,rules:showRules}[key];
@@ -248,7 +246,7 @@ function selectSettingsCategory(key){
 }
 function showAppearance(){
  const theme=document.documentElement.dataset.theme;
- sheet('Appearance',`<p class="panel-intro">Choose the theme that feels best to you. Your preference is saved on this device.</p><div class="theme-options" role="group" aria-label="Color theme">${['light','dark'].map(value=>button('theme',`<span class="theme-preview" data-preview="${value}" aria-hidden="true"><span></span><span></span></span><span class="theme-label">${icon(value==='light'?'sun':'moon')}<strong>${value==='light'?'Light':'Dark'}</strong>${icon('check')}</span>`,`data-theme="${value}" aria-pressed="${theme===value}"`,'theme-option')).join('')}</div>`);
+ sheet('Appearance',`<div class="theme-options" role="group" aria-label="Color theme">${['light','dark'].map(value=>button('theme',`<span class="theme-preview" data-preview="${value}" aria-hidden="true"><span></span><span></span></span><span class="theme-label">${icon(value==='light'?'sun':'moon')}<strong>${value==='light'?'Light':'Dark'}</strong>${icon('check')}</span>`,`data-theme="${value}" aria-pressed="${theme===value}"`,'theme-option')).join('')}</div>`);
 }
 function applyTheme(theme){
  document.documentElement.dataset.theme=theme;
@@ -256,25 +254,25 @@ function applyTheme(theme){
  for(const control of content.querySelectorAll('[data-act="theme"]'))control.setAttribute('aria-pressed',String(control.dataset.theme===theme));
 }
 function showBackup(){
- sheet('Backup & restore',`<p class="panel-intro">Your workouts are saved in this browser. Keep a backup to protect your history or move it to another device.</p><dl class="data-summary"><div><dt>Workouts</dt><dd>${state.sessions.length}</dd></div><div><dt>Routines</dt><dd>${state.routines.length}</dd></div><div><dt>Exercises</dt><dd>${state.ex.length}</dd></div></dl><section class="settings-section"><h3>Export a backup</h3><p>Download a copy of your workouts, routines, and exercise settings.</p>${button('export',icon('download')+'<span>Export workout data</span>','','secondary icon-label')}</section><section class="settings-section"><h3>Restore from a backup</h3><p>Import a saved file to replace your current workout data. You’ll review it before anything changes.</p>${button('import',icon('upload')+'<span>Import workout data</span>','','secondary icon-label')}</section>`);
+ sheet('Backup & restore',`<p class="panel-intro">Saved in this browser.</p><dl class="data-summary"><div><dt>Workouts</dt><dd>${state.sessions.length}</dd></div><div><dt>Routines</dt><dd>${state.routines.length}</dd></div><div><dt>Exercises</dt><dd>${state.ex.length}</dd></div></dl><section class="settings-section"><h3>Export</h3>${button('export',icon('download')+'<span>Download backup</span>','','secondary icon-label')}</section><section class="settings-section"><h3>Import</h3><p>Replaces your current data.</p>${button('import',icon('upload')+'<span>Choose backup</span>','','secondary icon-label')}</section>`);
 }
 function showRules(){
- sheet('Progression rules','<p class="panel-intro">How your next-session suggestions are calculated from finished workouts.</p><ol class="rules"><li><strong>Add weight</strong><p>Set 1 reaches the top of the rep range and set 2 meets the minimum at the same or a heavier weight.</p></li><li><strong>Add a rep</strong><p>Set 1 is in range. Keep its weight and aim for one more rep, up to the maximum.</p></li><li><strong>Repeat</strong><p>Set 1 is below the minimum. Keep its weight and aim for the minimum.</p></li><li><strong>Deload</strong><p>After three qualifying workouts below the minimum, reduce weight by one increment.</p></li></ol><p class="settings-footnote">Two working sets per exercise. Only finished workouts before the current workout’s date drive suggestions. Each set keeps its own weight. A partial workout stays in history; without set 1 it does not drive progression. Set an exercise’s increase to 0 kg to disable suggestions.</p>');
+ sheet('Progression rules','<ol class="rules"><li><strong>Add weight</strong><p>Set 1 hits the maximum; set 2 hits the minimum at the same or a heavier weight.</p></li><li><strong>Add a rep</strong><p>Set 1 is in range: keep the weight, add one rep up to the maximum.</p></li><li><strong>Repeat</strong><p>Below the minimum? Keep the weight and aim for the minimum.</p></li><li><strong>Deload</strong><p>Three qualifying workouts below the minimum: drop one increment.</p></li></ol><details class="settings-details"><summary>How targets work</summary><p>Two working sets. Only finished workouts before the current workout’s date affect suggestions. Each set keeps its own weight. Workouts without set 1 stay in history but don’t affect targets. Set increase to 0 kg to disable suggestions.</p></details>');
 }
 function showManager(){
  const rows=(items,act)=>items.map(item=>button(act,`<span><strong>${esc(item.name)}</strong><small>${item.archived?'Archived':item.ex?item.ex.length+' exercises':`${item.min}–${item.max} reps · ${item.inc?'+'+item.inc+' kg':'Progression off'}`}</small></span>${icon('chevron')}`,`data-id="${item.id}"`,'manager-row')).join('');
- sheet('Exercises & routines',`<p class="panel-intro">Organize your workouts and adjust exercise targets.</p><div class="manager-grid"><section><div class="section-heading"><h3>Routines</h3>${button('edit-routine',icon('plus')+'<span>New</span>','aria-label="New routine"','text-button icon-label')}</div><div class="action-list">${rows(state.routines,'edit-routine')||'<p class="muted">No routines yet.</p>'}</div></section><section><div class="section-heading"><h3>Exercises</h3>${button('edit-exercise',icon('plus')+'<span>New</span>','aria-label="New exercise"','text-button icon-label')}</div><div class="action-list">${rows(state.ex,'edit-exercise')||'<p class="muted">No exercises yet.</p>'}</div></section></div>`);
+ sheet('Exercises & routines',`<div class="manager-grid"><section><div class="section-heading"><h3>Routines</h3>${button('edit-routine',icon('plus')+'<span>New</span>','aria-label="New routine"','text-button icon-label')}</div><div class="action-list">${rows(state.routines,'edit-routine')||'<p class="muted">No routines yet.</p>'}</div></section><section><div class="section-heading"><h3>Exercises</h3>${button('edit-exercise',icon('plus')+'<span>New</span>','aria-label="New exercise"','text-button icon-label')}</div><div class="action-list">${rows(state.ex,'edit-exercise')||'<p class="muted">No exercises yet.</p>'}</div></section></div>`);
 }
 
 function showDetail(key,limit=30){
  const def=ix.exercises.get(key),history=ix.history.get(key)||[],values=history.map(h=>M.estimate(h.sets));
  if(!def){closeSheet();return;}
  const rows=history.slice().reverse().slice(0,limit).map(h=>`<li class="history-entry" tabindex="-1"><div><strong>${formatDate(h.d)}</strong> · ${esc(ix.routines.get(h.r).name)}${h.status==='active'?' · In progress':''}<br><span class="small">Set 1: ${setText(h.sets[0])}<br>Set 2: ${setText(h.sets[1])}</span></div>${button('delete-history','Delete',`data-id="${h.session}" data-key="${key}" aria-label="Delete ${esc(def.name)} entry from ${esc(ix.routines.get(h.r).name)} on ${formatDate(h.d)}"`,'text-button danger')}</li>`).join('');
- sheet(def.name,`<p class="muted">${def.min}–${def.max} reps · ${def.inc ? '+'+def.inc+' kg' : 'Progression off'}</p>${graph(values,def.name+' estimated one-rep-max trend; exact sets are listed below',true)}${values.length>1 ? `<p class="small muted">${formatDate(history[0].d)} — ${formatDate(history.at(-1).d)} · One point per logged workout</p>`:''}${rows ? `<ul class="history">${rows}</ul>` : `<div class="empty-state">${icon('history')}<h3>No sets logged yet</h3><p>Your logged sets and progress for this exercise will appear here.</p></div>`}${history.length>limit ? button('more-history',`Show earlier workouts (${history.length-limit} remaining)`,`data-key="${key}" data-limit="${limit+30}"`,'secondary') : ''}${button('edit-exercise',icon('edit')+'<span>Edit exercise</span>',`data-id="${key}"`,'secondary icon-label')}`,undefined,'detail');
+ sheet(def.name,`<p class="muted">${def.min}–${def.max} reps · ${def.inc ? '+'+def.inc+' kg' : 'Progression off'}</p>${graph(values,def.name+' estimated one-rep-max trend; exact sets are listed below',true)}${values.length>1 ? `<p class="small muted">${formatDate(history[0].d)} — ${formatDate(history.at(-1).d)} · Estimated 1RM</p>`:''}${rows ? `<ul class="history">${rows}</ul>` : `<div class="empty-state">${icon('history')}<h3>No sets logged yet</h3></div>`}${history.length>limit ? button('more-history',`Show earlier workouts (${history.length-limit} remaining)`,`data-key="${key}" data-limit="${limit+30}"`,'secondary') : ''}${button('edit-exercise',icon('edit')+'<span>Edit exercise</span>',`data-id="${key}"`,'secondary icon-label')}`,undefined,'detail');
 }
 function showPicker(){
  const used=currentNames(),available=state.ex.filter(e=>!e.archived&&!used.includes(e.id));
- sheet('Add to this workout',`<div class="action-list">${available.map(e=>button('pick',esc(e.name),`data-key="${e.id}"`)).join('') || '<p class="muted">All available exercises are already included.</p>'}</div>${button('new-for-session','＋ New exercise','','secondary')}`);
+ sheet('Add to this workout',`<div class="action-list">${available.map(e=>button('pick',esc(e.name),`data-key="${e.id}"`)).join('') || '<p class="muted">All exercises are included.</p>'}</div>${button('new-for-session','＋ New exercise','','secondary')}`);
 }
 function fieldError(form,message,input){
  const el=form.querySelector('.field-error');el.textContent=message;el.hidden=false;
@@ -287,19 +285,19 @@ function showExerciseEditor(key=null,addToSession=false){
  sheet(key ? 'Edit exercise' : 'New exercise',`<form data-form="exercise" data-id="${key||''}" data-add="${addToSession}" novalidate>
   <label>Name<input name="name" value="${esc(def.name)}" maxlength="100" required></label>
   <div class="field-grid"><label>Minimum reps<input name="min" inputmode="numeric" value="${def.min}" required></label><label>Maximum reps<input name="max" inputmode="numeric" value="${def.max}" required></label><label>Increase (kg)<input name="inc" inputmode="decimal" value="${def.inc}" required></label></div>
-  <p class="small muted">Use 0 kg to turn automatic progression off.</p>
+  <p class="small muted">0 kg disables progression.</p>
   <p class="field-error" role="alert" hidden></p><button class="primary" type="submit">${addToSession?'Create & add to workout':'Save exercise'}</button></form>
   ${key ? button(def.archived?'restore-exercise':'archive-exercise',def.archived?'Restore exercise':'Archive exercise',`data-id="${key}"`,'text-button danger') : ''}
-  ${key ? '<p class="small muted">Archiving removes this exercise from routines and keeps its history.</p>' : ''}`,undefined,'editor');
+  ${key ? '<p class="small muted">Archiving removes it from routines and keeps history.</p>' : ''}`,undefined,'editor');
 }
 function showRoutineEditor(key=null){
  if(key&&!ix.routines.has(key)){closeSheet();return;}
  const routine=ix.routines.get(key);
  routineDraft={id:key,name:routine?.name||'',ex:routine?.ex.filter(k=>!ix.exercises.get(k).archived).slice()||[]};
- sheet(key?'Edit routine':'New routine',`<form data-form="routine" novalidate><label>Name<input name="name" value="${esc(routineDraft.name)}" maxlength="100" required></label><h3>Exercise order</h3><div id="routine-order"></div><h3>Add exercises</h3><div id="routine-available" class="action-list"></div><p class="field-error" role="alert" hidden></p><button type="submit" class="primary">Save routine</button></form>${key ? button(routine.archived?'restore-routine':'archive-routine',routine.archived?'Restore routine':'Archive routine',`data-id="${key}"`,'text-button danger') : ''}${key?'<p class="small muted">History is retained. Order changes apply to new workouts.</p>':''}`,renderRoutineOrder,'editor');
+ sheet(key?'Edit routine':'New routine',`<form data-form="routine" novalidate><label>Name<input name="name" value="${esc(routineDraft.name)}" maxlength="100" required></label><h3>Exercise order</h3><div id="routine-order"></div><h3>Add exercises</h3><div id="routine-available" class="action-list"></div><p class="field-error" role="alert" hidden></p><button type="submit" class="primary">Save routine</button></form>${key ? button(routine.archived?'restore-routine':'archive-routine',routine.archived?'Restore routine':'Archive routine',`data-id="${key}"`,'text-button danger') : ''}${key?'<p class="small muted">Order changes apply to new workouts.</p>':''}`,renderRoutineOrder,'editor');
 }
 function renderRoutineOrder(){
- $('routine-order').innerHTML=routineDraft.ex.map((key,i)=>`<div class="order-row"><span>${i+1}. ${esc(ix.exercises.get(key).name)}</span><div>${button('move-up','↑',`data-key="${key}" ${i===0?'disabled':''} aria-label="Move ${esc(ix.exercises.get(key).name)} up"`)}${button('move-down','↓',`data-key="${key}" ${i===routineDraft.ex.length-1?'disabled':''} aria-label="Move ${esc(ix.exercises.get(key).name)} down"`)}${button('remove-from-routine','Remove',`data-key="${key}" aria-label="Remove ${esc(ix.exercises.get(key).name)} from routine"`)}</div></div>`).join('') || '<p class="muted">Choose exercises below. You can also add them during a workout.</p>';
+ $('routine-order').innerHTML=routineDraft.ex.map((key,i)=>`<div class="order-row"><span>${i+1}. ${esc(ix.exercises.get(key).name)}</span><div>${button('move-up','↑',`data-key="${key}" ${i===0?'disabled':''} aria-label="Move ${esc(ix.exercises.get(key).name)} up"`)}${button('move-down','↓',`data-key="${key}" ${i===routineDraft.ex.length-1?'disabled':''} aria-label="Move ${esc(ix.exercises.get(key).name)} down"`)}${button('remove-from-routine','Remove',`data-key="${key}" aria-label="Remove ${esc(ix.exercises.get(key).name)} from routine"`)}</div></div>`).join('') || '<p class="muted">Choose exercises below.</p>';
  $('routine-available').innerHTML=state.ex.filter(e=>!e.archived&&!routineDraft.ex.includes(e.id)).map(e=>button('include-exercise','＋ '+esc(e.name),`data-key="${e.id}"`)).join('') || '<p class="muted">All exercises are included.</p>';
 }
 function refreshSheet(){if(sheetStack.length)sheetStack.at(-1)();}
@@ -307,7 +305,7 @@ function finishWorkout(){
  const session=selectedSession(),stats=M.stats(session);
  if(!stats.logged)return;
  const perform=skip=>commit('Workout finished.',s=>M.finish(s,routineId,skip),{after:()=>{editingSet=null;if(dialog.open)closeSheet();}});
- if(stats.remaining){pushSheet(()=>sheet('Finish workout?',`<p>${stats.remaining} sets have not been logged. Finish and mark them as skipped?</p><button class="primary" id="confirm-finish">Skip remaining & finish</button>`,()=>{$('confirm-finish').onclick=()=>perform(true);}));}
+ if(stats.remaining){pushSheet(()=>sheet('Finish workout?',`<p>Skip the remaining ${stats.remaining} sets?</p><button class="primary" id="confirm-finish">Skip remaining & finish</button>`,()=>{$('confirm-finish').onclick=()=>perform(true);}));}
  else perform(false);
 }
 function reload(){
@@ -351,6 +349,8 @@ document.addEventListener('submit',event=>{
    const order=[key,...keys.slice(at+1),...keys.slice(0,at)];
    activeExercise=correcting ? key : order.find(k=>!session.entries[k]?.skipped && (!session.entries[k] || session.entries[k].sets.some(s=>!s)))||key;
   }})){
+   const loggedCard=$('card-'+key),feedback=loggedCard.querySelector(loggedCard.classList.contains('is-complete')?'.exercise-state':`.set-summary[data-slot="${slot}"] .set-done`);
+   if(feedback){feedback.classList.add('just-logged');feedback.addEventListener('animationend',()=>feedback.classList.remove('just-logged'),{once:true});}
    const card=$('card-'+activeExercise);
    const focus=correcting ? card.querySelector(`[data-act="edit-set"][data-slot="${slot}"]`) : card.querySelector(typing?'input':'form button[type="submit"]')||$('finish');
    focus?.focus({preventScroll:correcting});

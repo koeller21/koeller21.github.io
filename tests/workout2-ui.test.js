@@ -37,6 +37,8 @@ test('initial UI exposes workout/progress tabs, named inputs, a finish state and
 test('inline set logging retains independent weights, sibling drafts and unaffected DOM cards',t=>{
  const a=app(t),other=a.q('#card-ex_1');a.type(setForm(1)+' [name="weight"]','35');a.type(setForm(1)+' [name="reps"]','6');logFirst(a);
  assert.equal(a.q(setForm(1)+' [name="weight"]').value,'35');assert.equal(a.q('#card-ex_1'),other);
+ const done=a.q('#card-ex_0 .set-summary[data-slot="0"] [data-act="edit-set"]');assert.match(done.getAttribute('aria-label'),/Edit Overhead Press, set 1/);assert(done.classList.contains('just-logged'));
+ done.dispatchEvent(new a.w.Event('animationend'));assert.equal(done.classList.contains('just-logged'),false);
  a.submit(setForm(1));assert.deepEqual(a.stored().sessions[0].entries.ex_0.sets,[{w:40,reps:8},{w:35,reps:6}]);
  assert.match(a.q('#subtitle').textContent,/2\/10/);assert.equal(a.q('#finish').disabled,false);
 });
@@ -224,7 +226,7 @@ test('weight Enter advances to reps and button logging does not reopen an input'
 });
 
 test('progress begins with one useful empty state and shows only exercises with history',t=>{
- const a=app(t);a.click('#tab-progress');assert.equal(a.d.querySelectorAll('.progress-card').length,0);assert.match(a.q('#progress-view').textContent,/Your progress starts here/);
+ const a=app(t);a.click('#tab-progress');assert.equal(a.d.querySelectorAll('.progress-card').length,0);assert.match(a.q('#progress-view').textContent,/No progress yet/);
  a.click('#progress-view [data-act="view"]');assert.equal(a.q('#workout-view').hidden,false);logFirst(a);a.click('#tab-progress');assert.equal(a.d.querySelectorAll('.progress-card').length,1);
 });
 
