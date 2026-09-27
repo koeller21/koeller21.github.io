@@ -7,6 +7,8 @@ let state, ix, routineId=null, mode='workout', activeExercise=null, editingSet=n
 let undo=null, sheetStack=[], sheetReturnFocus=null, routineDraft=null, draftDirty=false, externalPending=false, storedSnapshot=null, loadFailed=false;
 const dialog=$('sheet'), content=$('sheet-content'), wide=matchMedia('(min-width: 900px)');
 const renderedCards=new WeakMap(), setDrafts=new Map();
+let settingsMode=false,settingsCategory=null,pendingSheetNavigation=null;
+const settingsSections=[['manager','Exercises & routines','dumbbell','Organize workouts and exercise targets'],['appearance','Appearance','sun','Choose a light or dark theme'],['backup','Backup & restore','download','Export or import your workout data'],['rules','Progression rules','chart','Understand your next-session targets']];
 const icons={
  dumbbell:'<path d="M6 6v12M3 9v6M18 6v12M21 9v6M6 12h12"/>',
  sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/>',
@@ -175,7 +177,13 @@ function setDrawer(open){
  if(open&&!wide.matches)($('drawer').querySelector('button')||$('drawer-close')).focus();
 }
 function closeDrawer(){setDrawer(false);if(!wide.matches)$('menu').focus();}
-wide.addEventListener('change',()=>setDrawer(false));
+wide.addEventListener('change',()=>{
+ setDrawer(false);
+ if(dialog.open&&settingsMode){
+  if(wide.matches&&sheetStack.length===1)selectSettingsCategory('manager');
+  else{const navFocused=$('settings-nav').contains(document.activeElement);syncSheetLayout();if(navFocused&&!wide.matches)$('sheet-title').focus();}
+ }
+});
 document.addEventListener('keydown',event=>{
  if(event.key==='Enter'&&event.target.matches('[data-form="set"] [name="weight"]')){event.preventDefault();event.target.form.elements.reps.focus();return;}
  if(document.documentElement.classList.contains('is-open')&&!wide.matches){
@@ -189,45 +197,80 @@ document.addEventListener('keydown',event=>{
  }
 });
 
-function sheet(title,html,setup){
- $('sheet-title').textContent=title;content.innerHTML=html;content.scrollTop=0;
- $('sheet-back').hidden=sheetStack.length<=1;
+function settingsNavigation(){
+ return settingsSections.map(([key,label,symbol,description])=>button('settings-category',`${icon(symbol)}<span><strong>${label}</strong><small>${description}</small></span>${icon('chevron')}`,`data-category="${key}" ${settingsCategory===key?'aria-current="page"':''}`,'settings-category')).join('');
+}
+function syncSheetLayout(){
+ dialog.classList.toggle('settings-dialog',settingsMode);
+ const nav=$('settings-nav'),showNav=settingsMode&&wide.matches;
+ nav.hidden=!showNav;
+ const html=showNav ? `<h2>Settings</h2><nav aria-label="Settings sections">${settingsNavigation()}</nav>` : '';
+ if(nav.innerHTML!==html)nav.innerHTML=html;
+ $('sheet-back').hidden=sheetStack.length<=(showNav?2:1);
+}
+function sheet(title,html,setup,kind=''){
+ $('sheet-title').textContent=title;content.innerHTML=html;content.scrollTop=0;dialog.dataset.kind=kind;
+ pendingSheetNavigation=null;$('sheet-unsaved').hidden=true;syncSheetLayout();
  if(!dialog.open){sheetReturnFocus=document.activeElement;dialog.showModal();document.documentElement.classList.add('modal-open');if(!$('notice').hidden)notice($('notice-text').textContent,$('notice').classList.contains('error'));}
  if(setup)setup();$('sheet-title').focus();draftDirty=false;
 }
 function pushSheet(renderer){sheetStack.push(renderer);renderer();}
-function backSheet(){if(sheetStack.length>1){sheetStack.pop();sheetStack.at(-1)();}}
-function closeSheet(){dialog.close();}
+function leaveSheet(proceed){
+ if(draftDirty&&content.querySelector('form')){
+  pendingSheetNavigation=proceed;$('sheet-unsaved').hidden=false;
+  $('sheet-unsaved').querySelector('[data-act="keep-editing"]').focus();return;
+ }
+ proceed();
+}
+function backSheet(){leaveSheet(()=>{
+ if(sheetStack.length>1){const category=settingsCategory;sheetStack.pop();sheetStack.at(-1)();if(sheetStack.length===1)content.querySelector(`[data-category="${category}"]`)?.focus();}
+});}
+function closeSheet(){leaveSheet(()=>dialog.close());}
+dialog.addEventListener('cancel',event=>{event.preventDefault();closeSheet();});
 dialog.addEventListener('close',()=>{
- sheetStack=[];routineDraft=null;draftDirty=false;document.documentElement.classList.remove('modal-open');
+ sheetStack=[];routineDraft=null;draftDirty=false;settingsMode=false;settingsCategory=null;pendingSheetNavigation=null;
+ $('sheet-unsaved').hidden=true;document.documentElement.classList.remove('modal-open');
  if(sheetReturnFocus?.isConnected)sheetReturnFocus.focus();else $('title').focus();
  if(!$('sheet-notice').hidden)notice($('sheet-notice-text').textContent,$('sheet-notice').classList.contains('error'));
  if(externalPending)reload();
 });
 dialog.addEventListener('click',event=>{if(event.target===dialog){const r=dialog.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)closeSheet();}});
 function showSettings(){
- const dark=document.documentElement.dataset.theme==='dark';
- const actions=[['manager','Exercises & routines','dumbbell'],['theme',`Use ${dark?'light':'dark'} theme`,dark?'sun':'moon'],['export','Export workout data','download'],['import','Import workout data','upload'],['about','Progression rules','chart']];
- sheet('Settings',`<div class="action-list settings-actions">${actions.map(([action,label,symbol])=>button(action,`${icon(symbol)}<span>${label}</span>${['manager','about'].includes(action)?icon('chevron'):''}`)).join('')}</div>`);
+ settingsMode=true;
+ if(wide.matches){selectSettingsCategory('manager');return;}
+ settingsCategory=null;
+ sheet('Settings',`<p class="panel-intro">Make Workout work for you.</p><nav class="settings-menu" aria-label="Settings sections">${settingsNavigation()}</nav>`);
+}
+function selectSettingsCategory(key){
+ const renderer={manager:showManager,appearance:showAppearance,backup:showBackup,rules:showRules}[key];
+ if(!renderer)return;
+ leaveSheet(()=>{settingsMode=true;settingsCategory=key;sheetStack=[showSettings,renderer];renderer();});
+}
+function showAppearance(){
+ const theme=document.documentElement.dataset.theme;
+ sheet('Appearance',`<p class="panel-intro">Choose the theme that feels best to you. Your preference is saved on this device.</p><div class="theme-options" role="group" aria-label="Color theme">${['light','dark'].map(value=>button('theme',`<span class="theme-preview" data-preview="${value}" aria-hidden="true"><span></span><span></span></span><span class="theme-label">${icon(value==='light'?'sun':'moon')}<strong>${value==='light'?'Light':'Dark'}</strong>${icon('check')}</span>`,`data-theme="${value}" aria-pressed="${theme===value}"`,'theme-option')).join('')}</div>`);
 }
 function applyTheme(theme){
  document.documentElement.dataset.theme=theme;
  document.querySelector('meta[name="theme-color"]').content=theme==='dark'?'#0d0d0d':'#ffffff';
- if(dialog.open&&sheetStack.at(-1)===showSettings){
-  const action=document.activeElement?.dataset.act;showSettings();
-  if(action)content.querySelector(`[data-act="${action}"]`)?.focus({preventScroll:true});
- }
+ for(const control of content.querySelectorAll('[data-act="theme"]'))control.setAttribute('aria-pressed',String(control.dataset.theme===theme));
+}
+function showBackup(){
+ sheet('Backup & restore',`<p class="panel-intro">Your workouts are saved in this browser. Keep a backup to protect your history or move it to another device.</p><dl class="data-summary"><div><dt>Workouts</dt><dd>${state.sessions.length}</dd></div><div><dt>Routines</dt><dd>${state.routines.length}</dd></div><div><dt>Exercises</dt><dd>${state.ex.length}</dd></div></dl><section class="settings-section"><h3>Export a backup</h3><p>Download a copy of your workouts, routines, and exercise settings.</p>${button('export',icon('download')+'<span>Export workout data</span>','','secondary icon-label')}</section><section class="settings-section"><h3>Restore from a backup</h3><p>Import a saved file to replace your current workout data. You’ll review it before anything changes.</p>${button('import',icon('upload')+'<span>Import workout data</span>','','secondary icon-label')}</section>`);
+}
+function showRules(){
+ sheet('Progression rules','<p class="panel-intro">How your next-session suggestions are calculated from finished workouts.</p><ol class="rules"><li><strong>Add weight</strong><p>Set 1 reaches the top of the rep range and set 2 meets the minimum at the same or a heavier weight.</p></li><li><strong>Add a rep</strong><p>Set 1 is in range. Keep its weight and aim for one more rep, up to the maximum.</p></li><li><strong>Repeat</strong><p>Set 1 is below the minimum. Keep its weight and aim for the minimum.</p></li><li><strong>Deload</strong><p>After three qualifying workouts below the minimum, reduce weight by one increment.</p></li></ol><p class="settings-footnote">Two working sets per exercise. Only finished workouts before the current workout’s date drive suggestions. Each set keeps its own weight. A partial workout stays in history; without set 1 it does not drive progression. Set an exercise’s increase to 0 kg to disable suggestions.</p>');
+}
+function showManager(){
+ const rows=(items,act)=>items.map(item=>button(act,`<span><strong>${esc(item.name)}</strong><small>${item.archived?'Archived':item.ex?item.ex.length+' exercises':`${item.min}–${item.max} reps · ${item.inc?'+'+item.inc+' kg':'Progression off'}`}</small></span>${icon('chevron')}`,`data-id="${item.id}"`,'manager-row')).join('');
+ sheet('Exercises & routines',`<p class="panel-intro">Organize your workouts and adjust exercise targets.</p><div class="manager-grid"><section><div class="section-heading"><h3>Routines</h3>${button('edit-routine',icon('plus')+'<span>New</span>','aria-label="New routine"','text-button icon-label')}</div><div class="action-list">${rows(state.routines,'edit-routine')||'<p class="muted">No routines yet.</p>'}</div></section><section><div class="section-heading"><h3>Exercises</h3>${button('edit-exercise',icon('plus')+'<span>New</span>','aria-label="New exercise"','text-button icon-label')}</div><div class="action-list">${rows(state.ex,'edit-exercise')||'<p class="muted">No exercises yet.</p>'}</div></section></div>`);
 }
 
-function showManager(){
- const rows=(items,act)=>items.map(item=>button(act,`${esc(item.name)}${item.archived?' <span class="muted">(archived)</span>':''}`,`data-id="${item.id}"`)).join('');
- sheet('Exercises & routines',`<h3>Routines</h3><div class="action-list">${rows(state.routines,'edit-routine')}${button('edit-routine','＋ New routine')}</div><h3>Exercises</h3><div class="action-list">${rows(state.ex,'edit-exercise')}${button('edit-exercise','＋ New exercise')}</div>`);
-}
 function showDetail(key,limit=30){
  const def=ix.exercises.get(key),history=ix.history.get(key)||[],values=history.map(h=>M.estimate(h.sets));
  if(!def){closeSheet();return;}
  const rows=history.slice().reverse().slice(0,limit).map(h=>`<li class="history-entry" tabindex="-1"><div><strong>${formatDate(h.d)}</strong> · ${esc(ix.routines.get(h.r).name)}${h.status==='active'?' · In progress':''}<br><span class="small">Set 1: ${setText(h.sets[0])}<br>Set 2: ${setText(h.sets[1])}</span></div>${button('delete-history','Delete',`data-id="${h.session}" data-key="${key}" aria-label="Delete ${esc(def.name)} entry from ${esc(ix.routines.get(h.r).name)} on ${formatDate(h.d)}"`,'text-button danger')}</li>`).join('');
- sheet(def.name,`<p class="muted">${def.min}–${def.max} reps · ${def.inc ? '+'+def.inc+' kg' : 'Progression off'}</p>${graph(values,def.name+' estimated one-rep-max trend; exact sets are listed below',true)}${values.length>1 ? `<p class="small muted">${formatDate(history[0].d)} — ${formatDate(history.at(-1).d)} · One point per logged workout</p>`:''}<ul class="history">${rows || '<li>No sets logged yet.</li>'}</ul>${history.length>limit ? button('more-history',`Show earlier workouts (${history.length-limit} remaining)`,`data-key="${key}" data-limit="${limit+30}"`,'secondary') : ''}${button('edit-exercise','Edit exercise',`data-id="${key}"`,'secondary')}`);
+ sheet(def.name,`<p class="muted">${def.min}–${def.max} reps · ${def.inc ? '+'+def.inc+' kg' : 'Progression off'}</p>${graph(values,def.name+' estimated one-rep-max trend; exact sets are listed below',true)}${values.length>1 ? `<p class="small muted">${formatDate(history[0].d)} — ${formatDate(history.at(-1).d)} · One point per logged workout</p>`:''}${rows ? `<ul class="history">${rows}</ul>` : `<div class="empty-state">${icon('history')}<h3>No sets logged yet</h3><p>Your logged sets and progress for this exercise will appear here.</p></div>`}${history.length>limit ? button('more-history',`Show earlier workouts (${history.length-limit} remaining)`,`data-key="${key}" data-limit="${limit+30}"`,'secondary') : ''}${button('edit-exercise',icon('edit')+'<span>Edit exercise</span>',`data-id="${key}"`,'secondary icon-label')}`,undefined,'detail');
 }
 function showPicker(){
  const used=currentNames(),available=state.ex.filter(e=>!e.archived&&!used.includes(e.id));
@@ -247,13 +290,13 @@ function showExerciseEditor(key=null,addToSession=false){
   <p class="small muted">Use 0 kg to turn automatic progression off.</p>
   <p class="field-error" role="alert" hidden></p><button class="primary" type="submit">${addToSession?'Create & add to workout':'Save exercise'}</button></form>
   ${key ? button(def.archived?'restore-exercise':'archive-exercise',def.archived?'Restore exercise':'Archive exercise',`data-id="${key}"`,'text-button danger') : ''}
-  ${key ? '<p class="small muted">Archiving removes this exercise from routines and keeps its history.</p>' : ''}`);
+  ${key ? '<p class="small muted">Archiving removes this exercise from routines and keeps its history.</p>' : ''}`,undefined,'editor');
 }
 function showRoutineEditor(key=null){
  if(key&&!ix.routines.has(key)){closeSheet();return;}
  const routine=ix.routines.get(key);
  routineDraft={id:key,name:routine?.name||'',ex:routine?.ex.filter(k=>!ix.exercises.get(k).archived).slice()||[]};
- sheet(key?'Edit routine':'New routine',`<form data-form="routine" novalidate><label>Name<input name="name" value="${esc(routineDraft.name)}" maxlength="100" required></label><h3>Exercise order</h3><div id="routine-order"></div><h3>Add exercises</h3><div id="routine-available" class="action-list"></div><p class="field-error" role="alert" hidden></p><button type="submit" class="primary">Save routine</button></form>${key ? button(routine.archived?'restore-routine':'archive-routine',routine.archived?'Restore routine':'Archive routine',`data-id="${key}"`,'text-button danger') : ''}${key?'<p class="small muted">History is retained. Order changes apply to new workouts.</p>':''}`,renderRoutineOrder);
+ sheet(key?'Edit routine':'New routine',`<form data-form="routine" novalidate><label>Name<input name="name" value="${esc(routineDraft.name)}" maxlength="100" required></label><h3>Exercise order</h3><div id="routine-order"></div><h3>Add exercises</h3><div id="routine-available" class="action-list"></div><p class="field-error" role="alert" hidden></p><button type="submit" class="primary">Save routine</button></form>${key ? button(routine.archived?'restore-routine':'archive-routine',routine.archived?'Restore routine':'Archive routine',`data-id="${key}"`,'text-button danger') : ''}${key?'<p class="small muted">History is retained. Order changes apply to new workouts.</p>':''}`,renderRoutineOrder,'editor');
 }
 function renderRoutineOrder(){
  $('routine-order').innerHTML=routineDraft.ex.map((key,i)=>`<div class="order-row"><span>${i+1}. ${esc(ix.exercises.get(key).name)}</span><div>${button('move-up','↑',`data-key="${key}" ${i===0?'disabled':''} aria-label="Move ${esc(ix.exercises.get(key).name)} up"`)}${button('move-down','↓',`data-key="${key}" ${i===routineDraft.ex.length-1?'disabled':''} aria-label="Move ${esc(ix.exercises.get(key).name)} down"`)}${button('remove-from-routine','Remove',`data-key="${key}" aria-label="Remove ${esc(ix.exercises.get(key).name)} from routine"`)}</div></div>`).join('') || '<p class="muted">Choose exercises below. You can also add them during a workout.</p>';
@@ -355,7 +398,7 @@ document.addEventListener('click',event=>{
  else if(act==='detail')pushSheet(()=>showDetail(key));
  else if(act==='delete-history')commit('History entry deleted.',s=>M.deleteHistory(s,id,key),{after:refreshSheet});
  else if(act==='settings'){closeDrawer();pushSheet(showSettings);}
- else if(act==='manager')pushSheet(showManager);
+ else if(act==='settings-category')selectSettingsCategory(el.dataset.category);
  else if(act==='edit-exercise')pushSheet(()=>showExerciseEditor(id||null));
  else if(act==='edit-routine'){if(el.closest('#drawer'))closeDrawer();pushSheet(()=>showRoutineEditor(id||null));}
  else if(act==='edit-current-routine')pushSheet(()=>showRoutineEditor(routineId));
@@ -369,6 +412,8 @@ document.addEventListener('click',event=>{
   renderRoutineOrder();draftDirty=true;
   const next=content.querySelector(`[data-act="${act}"][data-key="${key}"]:not(:disabled)`) || content.querySelector(`[data-key="${key}"]:not(:disabled)`);next?.focus();
  }
+ else if(act==='keep-editing'){pendingSheetNavigation=null;$('sheet-unsaved').hidden=true;content.querySelector('input')?.focus();}
+ else if(act==='discard-edits'){const next=pendingSheetNavigation;pendingSheetNavigation=null;draftDirty=false;$('sheet-unsaved').hidden=true;next?.();}
  else if(act==='back')backSheet();
  else if(act==='close')closeSheet();
  else if(act==='undo'){
@@ -377,16 +422,15 @@ document.addEventListener('click',event=>{
  else if(act==='dismiss-notice'){el.parentElement.hidden=true;}
  else if(act==='reload') {draftDirty=false;if(dialog.open)closeSheet();reload();}
  else if(act==='theme'){
-  const theme=document.documentElement.dataset.theme==='dark'?'light':'dark';applyTheme(theme);
+  const theme=el.dataset.theme;applyTheme(theme);
   try{localStorage.setItem('wtheme',theme);}catch(error){notice('Theme changed for this visit only.',true);}
-  content.querySelector('[data-act="theme"]')?.focus({preventScroll:true});
+  el.focus({preventScroll:true});
  }
  else if(act==='export')exportData();
  else if(act==='export-raw'){
   const url=URL.createObjectURL(new Blob([storedSnapshot||''],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='workout-recovery.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
  }
  else if(act==='import')$('importfile').click();
- else if(act==='about')pushSheet(()=>sheet('Progression rules','<p>Two working sets per exercise. Suggestions use finished workouts before the date of the current workout.</p><ul class="rules"><li><strong>Add weight:</strong> set 1 reaches the top of the rep range and set 2 meets the minimum at the same or a heavier weight.</li><li><strong>Add a rep:</strong> set 1 is in range; keep its weight and aim for one more rep, up to the maximum.</li><li><strong>Repeat:</strong> set 1 is below the minimum; keep its weight and aim for the minimum.</li><li><strong>Deload:</strong> after three qualifying workouts below the minimum, reduce weight by one increment.</li></ul><p>Each set keeps its own weight. A partial workout stays in history; without set 1 it does not drive progression. Increment 0 disables suggestions.</p>'));
 });
 $('importfile').addEventListener('change',event=>{const file=event.target.files[0];event.target.value='';if(file)importFile(file);});
 window.addEventListener('storage',event=>{

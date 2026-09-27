@@ -14,7 +14,7 @@ function app(t,{state,desktop=false,raw,theme}={}){
  if(raw!==undefined)w.localStorage.setItem('wapp',raw);else if(state)w.localStorage.setItem('wapp',JSON.stringify(state));
  if(theme)w.localStorage.setItem('wtheme',theme);
  for(const script of d.querySelectorAll('script:not([src])'))new vm.Script(script.textContent).runInContext(dom.getInternalVMContext());
- w.matchMedia=()=>({matches:desktop,addEventListener(){}});
+ const media={matches:desktop,addEventListener(type,handler){this.onchange=handler;}};w.matchMedia=()=>media;
  w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};
  w.HTMLDialogElement.prototype.close=function(){this.open=false;this.dispatchEvent(new w.Event('close'));};
  new vm.Script(model).runInContext(dom.getInternalVMContext());new vm.Script(ui).runInContext(dom.getInternalVMContext());
@@ -24,7 +24,7 @@ function app(t,{state,desktop=false,raw,theme}={}){
  const type=(selector,value)=>{const e=q(selector);e.value=String(value);e.dispatchEvent(new w.Event('input',{bubbles:true}));};
  const submit=selector=>q(selector).dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true}));
  const stored=()=>JSON.parse(w.localStorage.getItem('wapp'));
- return {w,d,q,click,type,submit,stored};
+ return {w,d,q,click,type,submit,stored,resizeDesktop:matches=>{media.matches=matches;media.onchange?.();}};
 }
 const setForm=slot=>`#card-ex_0 form[data-slot="${slot}"]`;
 function logFirst(a){a.type(setForm(0)+' [name="weight"]','40');a.type(setForm(0)+' [name="reps"]','8');a.submit(setForm(0));}
@@ -79,7 +79,7 @@ test('desktop navigation is exposed to assistive technologies',t=>{
  const a=app(t,{desktop:true});assert.equal(a.q('#drawer').inert,false);assert.equal(a.q('#drawer').getAttribute('aria-hidden'),'false');
 });
 test('dialog Back and Close return predictably and focus stays visible',t=>{
- const a=app(t);a.click('[data-act="settings"]');assert.equal(a.d.activeElement,a.q('#sheet-title'));a.click('[data-act="manager"]');assert.equal(a.q('#sheet-back').hidden,false);
+ const a=app(t);a.click('[data-act="settings"]');assert.equal(a.d.activeElement,a.q('#sheet-title'));a.click('[data-category="manager"]');assert.equal(a.q('#sheet-back').hidden,false);
  a.click('#sheet-back');assert.equal(a.q('#sheet-title').textContent,'Settings');a.click('[data-act="close"]');assert.equal(a.q('#sheet').open,false);assert.equal(a.d.activeElement,a.q('#menu'));
 });
 test('invalid nested import preserves saved state; valid replacement requires a confirmation and is undoable',async t=>{
@@ -165,10 +165,12 @@ test('import cancellation and oversize rejection leave saved state untouched',as
  const a=app(t,{state:M.defaults()}),before=a.w.localStorage.getItem('wapp');await a.w.importFile({size:11*1024*1024,text:async()=>{throw Error('Should not read oversized file');}});assert.equal(a.w.localStorage.getItem('wapp'),before);
  await a.w.importFile({size:100,text:async()=>JSON.stringify(M.defaults())});a.click('[data-act="close"]');assert.equal(a.w.localStorage.getItem('wapp'),before);
 });
-test('theme changes keep the setting label, document theme and browser tint consistent',t=>{
- const a=app(t);a.click('[data-act="settings"]');a.click('[data-act="theme"]');assert.equal(a.d.documentElement.dataset.theme,'dark');assert.equal(a.w.localStorage.getItem('wtheme'),'dark');assert.match(a.q('[data-act="theme"]').textContent,/light/);assert.equal(a.q('meta[name="theme-color"]').content,'#0d0d0d');
- a.click('[data-act="theme"]');assert.equal(a.d.documentElement.dataset.theme,'light');assert.equal(a.q('meta[name="theme-color"]').content,'#ffffff');
+test('appearance choices keep the document theme, selected option and browser tint consistent',t=>{
+ const a=app(t);a.click('[data-act="settings"]');a.click('[data-category="appearance"]');a.click('button[data-theme="dark"]');
+ assert.equal(a.d.documentElement.dataset.theme,'dark');assert.equal(a.w.localStorage.getItem('wtheme'),'dark');assert.equal(a.q('button[data-theme="dark"]').getAttribute('aria-pressed'),'true');assert.equal(a.q('meta[name="theme-color"]').content,'#0d0d0d');
+ a.click('button[data-theme="light"]');assert.equal(a.d.documentElement.dataset.theme,'light');assert.equal(a.q('meta[name="theme-color"]').content,'#ffffff');assert.equal(a.q('button[data-theme="dark"]').getAttribute('aria-pressed'),'false');
 });
+
 test('history pages expose earlier workouts without replacing or deleting any data',t=>{
  const s=M.defaults();for(let i=0;i<65;i++){const date=new Date(Date.UTC(2020,0,i+1)).toISOString().slice(0,10);s.sessions.push({id:'session_'+i,d:date,r:'push',status:'finished',ex:['ex_0'],entries:{ex_0:{sets:[{w:40+i,reps:8},null],skipped:true}}});}
  const a=app(t,{state:s});a.click('[data-act="routine"][data-id="push"]');a.click('[data-act="detail"][data-key="ex_0"]');assert.equal(a.d.querySelectorAll('.history-entry').length,30);a.click('[data-act="more-history"]');assert.equal(a.d.querySelectorAll('.history-entry').length,60);assert(a.d.activeElement.classList.contains('history-entry'));a.click('[data-act="more-history"]');assert.equal(a.d.querySelectorAll('.history-entry').length,65);assert(!a.d.querySelector('[data-act="more-history"]'));assert.equal(a.stored().sessions.length,65);
@@ -186,7 +188,7 @@ test('saved theme is applied on initialization without altering workout state',t
 test('export downloads complete workout data with independent sets and no removed tracking fields',async t=>{
  const a=app(t);logFirst(a);let exported,filename;
  a.w.URL.createObjectURL=blob=>{exported=blob;return 'blob:test';};a.w.URL.revokeObjectURL=()=>{};a.w.HTMLAnchorElement.prototype.click=function(){filename=this.download;};
- a.click('[data-act="settings"]');a.click('[data-act="export"]');assert.match(filename,/^workout-\d{4}-\d{2}-\d{2}\.json$/);
+ a.click('[data-act="settings"]');a.click('[data-category="backup"]');a.click('[data-act="export"]');assert.match(filename,/^workout-\d{4}-\d{2}-\d{2}\.json$/);
  const text=await new Promise((resolve,reject)=>{const reader=new a.w.FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsText(exported);});const payload=JSON.parse(text);
  assert.deepEqual(Object.keys(payload),['v','ex','routines','sessions']);assert.equal(payload.sessions[0].entries.ex_0.sets[0].w,40);assert.deepEqual(M.normalize(payload),payload);
 });
@@ -194,10 +196,10 @@ test('routine removal, reordering, rename, archive and restore preserve logs',t=
  const s=M.defaults();M.logSet(s,'push','ex_0',0,40,8);const a=app(t,{state:s});a.click('[data-act="edit-current-routine"]');a.type('#sheet [name="name"]','Push A');a.click('[data-act="move-down"][data-key="ex_0"]');a.click('[data-act="remove-from-routine"][data-key="ex_3"]');a.submit('#sheet form');
  assert.equal(a.q('#title').textContent,'Push A');assert.deepEqual(a.stored().routines[0].ex,['ex_1','ex_0','ex_2','ex_4']);assert(a.stored().sessions[0].ex.includes('ex_3'));
  a.click('[data-act="edit-current-routine"]');a.click('[data-act="archive-routine"]');assert.notEqual(a.q('#title').textContent,'Push A');assert.equal(a.stored().sessions[0].entries.ex_0.sets[0].w,40);
- a.click('[data-act="settings"]');a.click('[data-act="manager"]');a.click('[data-act="edit-routine"][data-id="push"]');a.click('[data-act="restore-routine"]');a.click('[data-act="close"]');a.click('[data-act="routine"][data-id="push"]');assert.equal(a.q('#title').textContent,'Push A');assert.match(a.q('#subtitle').textContent,/In progress/);
+ a.click('[data-act="settings"]');a.click('[data-category="manager"]');a.click('[data-act="edit-routine"][data-id="push"]');a.click('[data-act="restore-routine"]');a.click('[data-act="close"]');a.click('[data-act="routine"][data-id="push"]');assert.equal(a.q('#title').textContent,'Push A');assert.match(a.q('#subtitle').textContent,/In progress/);
 });
 test('progression help is reachable and Back returns to Settings',t=>{
- const a=app(t);a.click('[data-act="settings"]');a.click('[data-act="about"]');assert.equal(a.q('#sheet-title').textContent,'Progression rules');assert.match(a.q('#sheet-content').textContent,/Each set keeps its own weight/);a.click('#sheet-back');assert.equal(a.q('#sheet-title').textContent,'Settings');
+ const a=app(t);a.click('[data-act="settings"]');a.click('[data-category="rules"]');assert.equal(a.q('#sheet-title').textContent,'Progression rules');assert.match(a.q('#sheet-content').textContent,/Each set keeps its own weight/);a.click('#sheet-back');assert.equal(a.q('#sheet-title').textContent,'Settings');
 });
 
 
@@ -226,10 +228,10 @@ test('progress begins with one useful empty state and shows only exercises with 
  a.click('#progress-view [data-act="view"]');assert.equal(a.q('#workout-view').hidden,false);logFirst(a);a.click('#tab-progress');assert.equal(a.d.querySelectorAll('.progress-card').length,1);
 });
 
-test('theme changes from another tab update Settings without disturbing editor drafts',t=>{
- const a=app(t);a.click('[data-act="settings"]');a.q('[data-act="theme"]').focus();
- a.w.dispatchEvent(new a.w.StorageEvent('storage',{key:'wtheme',newValue:'dark'}));assert.match(a.q('[data-act="theme"]').textContent,/light/);assert.equal(a.d.activeElement,a.q('[data-act="theme"]'));
- a.click('[data-act="manager"]');a.click('[data-act="edit-exercise"][data-id="ex_0"]');a.type('#sheet [name="name"]','Unsaved name');const input=a.q('#sheet [name="name"]');
+test('theme changes from another tab update Appearance without disturbing editor drafts',t=>{
+ const a=app(t);a.click('[data-act="settings"]');a.click('[data-category="appearance"]');const choice=a.q('button[data-theme="light"]');choice.focus();
+ a.w.dispatchEvent(new a.w.StorageEvent('storage',{key:'wtheme',newValue:'dark'}));assert.equal(a.q('button[data-theme="dark"]').getAttribute('aria-pressed'),'true');assert.equal(a.d.activeElement,choice);
+ a.click('#sheet-back');a.click('[data-category="manager"]');a.click('[data-act="edit-exercise"][data-id="ex_0"]');a.type('#sheet [name="name"]','Unsaved name');const input=a.q('#sheet [name="name"]');
  a.w.dispatchEvent(new a.w.StorageEvent('storage',{key:'wtheme',newValue:'light'}));assert.equal(a.q('#sheet [name="name"]'),input);assert.equal(input.value,'Unsaved name');
 });
 
@@ -237,4 +239,41 @@ test('set drafts remain protected from external reload after closing Settings',t
  const a=app(t,{state:M.defaults()});a.type(setForm(0)+' [name="weight"]','31.25');a.click('[data-act="settings"]');a.click('[data-act="close"]');
  const other=M.defaults();M.logSet(other,'pull','ex_5',0,60,8);a.w.localStorage.setItem('wapp',JSON.stringify(other));a.w.dispatchEvent(new a.w.StorageEvent('storage',{key:'wapp'}));
  assert.equal(a.q(setForm(0)+' [name="weight"]').value,'31.25');assert.match(a.q('#notice-text').textContent,/changed/);a.submit(setForm(0));assert.equal(a.stored().sessions[0].r,'pull');
+});
+
+
+test('desktop Settings keeps its sidebar and switches categories without growing the Back stack',t=>{
+ const a=app(t,{desktop:true});a.click('[data-act="settings"]');assert.equal(a.q('#settings-nav').hidden,false);assert.equal(a.q('#sheet-title').textContent,'Exercises & routines');assert.equal(a.q('#sheet-back').hidden,true);
+ for(const category of ['appearance','backup','rules','manager','backup']){a.click(`[data-category="${category}"]`);assert.equal(a.q('#settings-nav [aria-current="page"]').dataset.category,category);assert.equal(a.q('#sheet-back').hidden,true);assert.equal(a.d.querySelectorAll('[data-act="settings-category"]').length,4);}
+ a.click('[data-category="manager"]');a.click('[data-act="edit-exercise"][data-id="ex_0"]');assert.equal(a.q('#sheet-back').hidden,false);a.click('#sheet-back');assert.equal(a.q('#sheet-title').textContent,'Exercises & routines');assert.equal(a.q('#sheet-back').hidden,true);
+});
+
+test('mobile Settings starts with categories and returns focus to the category after Back',t=>{
+ const a=app(t);a.click('[data-act="settings"]');assert.equal(a.q('#settings-nav').hidden,true);assert.equal(a.q('#sheet-title').textContent,'Settings');
+ a.click('[data-category="backup"]');assert.equal(a.q('#sheet-title').textContent,'Backup & restore');assert.equal(a.d.querySelector('[data-act="settings-category"]'),null);
+ a.click('#sheet-back');assert.equal(a.q('#sheet-title').textContent,'Settings');assert.equal(a.d.activeElement,a.q('[data-category="backup"]'));
+});
+
+test('resizing Settings preserves editor inputs and adapts its navigation',t=>{
+ const a=app(t,{desktop:true});a.click('[data-act="settings"]');a.click('[data-act="edit-exercise"][data-id="ex_0"]');a.type('#sheet [name="name"]','Still editing');const input=a.q('#sheet [name="name"]');
+ a.resizeDesktop(false);assert.equal(a.q('#settings-nav').hidden,true);assert.equal(a.q('#sheet [name="name"]'),input);assert.equal(input.value,'Still editing');assert.equal(a.q('#sheet-back').hidden,false);
+ a.resizeDesktop(true);assert.equal(a.q('#settings-nav').hidden,false);assert.equal(a.q('#sheet [name="name"]'),input);
+});
+
+test('changing categories with an unsaved edit offers Keep editing or Discard without mutating data',t=>{
+ const a=app(t,{desktop:true});a.click('[data-act="settings"]');a.click('[data-act="edit-exercise"][data-id="ex_0"]');a.type('#sheet [name="name"]','Draft name');
+ a.click('[data-category="appearance"]');assert.equal(a.q('#sheet-unsaved').hidden,false);assert.equal(a.q('#sheet-title').textContent,'Edit exercise');
+ a.click('[data-act="keep-editing"]');assert.equal(a.q('#sheet [name="name"]').value,'Draft name');assert.equal(a.q('#sheet-unsaved').hidden,true);
+ a.click('[data-category="appearance"]');a.click('[data-act="discard-edits"]');assert.equal(a.q('#sheet-title').textContent,'Appearance');assert.equal(a.w.localStorage.getItem('wapp'),null);
+});
+
+test('Escape and Close protect unsaved edits and Discard returns focus to the opener',t=>{
+ const a=app(t,{desktop:true});a.q('[data-act="edit-current-routine"]').focus();a.click('[data-act="edit-current-routine"]');a.type('#sheet [name="name"]','Draft routine');
+ a.q('#sheet').dispatchEvent(new a.w.Event('cancel',{cancelable:true}));assert.equal(a.q('#sheet').open,true);assert.equal(a.q('#sheet-unsaved').hidden,false);a.click('[data-act="keep-editing"]');
+ a.click('[data-act="close"]');assert.equal(a.q('#sheet').open,true);a.click('[data-act="discard-edits"]');assert.equal(a.q('#sheet').open,false);assert.equal(a.d.activeElement,a.q('[data-act="edit-current-routine"]'));
+});
+
+test('saving a guarded edit returns to its settings category without a stale warning',t=>{
+ const a=app(t,{desktop:true});a.click('[data-act="settings"]');a.click('[data-act="edit-exercise"][data-id="ex_0"]');a.type('#sheet [name="name"]','Saved press');a.click('[data-category="backup"]');
+ a.submit('#sheet form');assert.equal(a.stored().ex[0].name,'Saved press');assert.equal(a.q('#sheet-title').textContent,'Exercises & routines');assert.equal(a.q('#sheet-unsaved').hidden,true);a.click('[data-category="backup"]');assert.equal(a.q('#sheet-title').textContent,'Backup & restore');
 });
