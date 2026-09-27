@@ -10,8 +10,12 @@ jsdom does not render layouts or implement native dialog focus trapping, mobile 
 
 ## Audit result — 2026-09-27
 
-54 regression checks pass, including a complete custom-routine journey and the import/export, archive/restore, failure/recovery, keyboard-focus, draft-preservation and stale-write paths. The test harness collects uncaught DOM errors; all audited paths completed without them.
+60 regression checks pass. Coverage includes a complete custom-routine journey, import/export, archive/restore, failure/recovery, keyboard focus, draft preservation, stale writes, compact-card navigation, correction without jumping to another exercise, and cross-tab theme changes.
 
-An isolated 3,000-session probe (about 481 KB of JSON) measured 27 ms for validation/normalization, 2 ms for building history indexes, 63 ms for the initial jsdom render and 35 ms to open exercise history. Only 30 history rows are rendered initially; earlier entries load in batches. These are local Node/jsdom measurements, not browser frame-rate or mobile performance results.
+The local page was also verified in isolated headless Chrome at 320, 390, 768 and 1280 px. Logging, correction and finishing passed at each width with no page errors or horizontal overflow. Screenshots were inspected in light and dark themes. Additional checks covered native dialog Tab/Escape behavior, reduced motion, long exercise names, labeled controls and 44 px button heights. The built-in browser runner still has a Windows sandbox startup issue; the bundled Playwright runtime and an isolated Chrome profile provided the browser verification. No personal browser profile or production workout data was accessed.
 
-Live browser verification was attempted against the supplied GitHub Pages URL, but the browser runner could not start because of a Windows sandbox ACL error. Visual layout, native dialog behavior and mobile keyboard behavior therefore remain unverified on actual devices.
+A 3,000-session fixture with Chrome CPU throttling set to 4× produced these median synchronous interaction-plus-layout times across five runs: progress view 25.8 ms, history 60 ms, settings 14.4 ms, and logging a set 125 ms. History initially renders 30 rows. These measurements exclude network latency and subsequent painting; they are not real-device interaction or frame-rate guarantees.
+
+The four production HTML/CSS/JS assets total 66,581 bytes uncompressed and 20,564 bytes with local gzip compression (favicon excluded). There are no runtime package dependencies, external fonts, icon downloads, or a build step.
+
+Physical iOS/Android keyboard behavior and device-specific scrolling still require real-device checks; desktop mobile emulation does not establish those behaviors.

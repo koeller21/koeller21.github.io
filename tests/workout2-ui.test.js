@@ -137,7 +137,7 @@ test('a complete custom-routine journey supports creation, logging, correction, 
  logFirst(a);a.type(setForm(1)+' [name="weight"]','37,5');a.type(setForm(1)+' [name="reps"]','7');a.submit(setForm(1));
  a.click('[data-act="edit-set"][data-key="ex_0"][data-slot="0"]');a.type(setForm(0)+' [name="reps"]','6');a.submit(setForm(0));
  assert.deepEqual(a.stored().sessions[0].entries.ex_0.sets,[{w:40,reps:6},{w:37.5,reps:7}]);
- a.click('[data-act="skip"][data-key="ex_1"]');a.click('#finish');assert.equal(a.q('#sheet').open,false);assert.equal(a.stored().sessions[0].status,'finished');
+ a.click('[data-act="expand"][data-key="ex_1"]');a.click('[data-act="skip"][data-key="ex_1"]');a.click('#finish');assert.equal(a.q('#sheet').open,false);assert.equal(a.stored().sessions[0].status,'finished');
  a.click('#reopen');assert.equal(a.stored().sessions[0].status,'active');a.click('[data-act="edit-set"][data-key="ex_1"][data-slot="1"]');
  const form='#card-ex_1 form[data-slot="1"]';a.type(form+' [name="weight"]','20');a.type(form+' [name="reps"]','8');a.submit(form);
  a.click('#finish');a.click('#confirm-finish');assert.equal(a.stored().sessions[0].entries.ex_1.sets[1].w,20);
@@ -198,4 +198,43 @@ test('routine removal, reordering, rename, archive and restore preserve logs',t=
 });
 test('progression help is reachable and Back returns to Settings',t=>{
  const a=app(t);a.click('[data-act="settings"]');a.click('[data-act="about"]');assert.equal(a.q('#sheet-title').textContent,'Progression rules');assert.match(a.q('#sheet-content').textContent,/Each set keeps its own weight/);a.click('#sheet-back');assert.equal(a.q('#sheet-title').textContent,'Settings');
+});
+
+
+test('compact exercise cards expand and collapse with focus retained on their toggle',t=>{
+ const a=app(t),toggle='[data-act="expand"][data-key="ex_1"]';
+ assert.equal(a.q('#sets-ex_1').hidden,true);a.q(toggle).focus();a.click(toggle);
+ assert.equal(a.q('#sets-ex_0').hidden,true);assert.equal(a.q('#sets-ex_1').hidden,false);assert.equal(a.d.activeElement,a.q(toggle));
+ a.click(toggle);assert.equal(a.q('#sets-ex_1').hidden,true);assert.equal(a.q(toggle).getAttribute('aria-expanded'),'false');assert.equal(a.d.activeElement,a.q(toggle));
+});
+
+test('correcting a logged set keeps its exercise open and returns focus to Edit',t=>{
+ const a=app(t);logFirst(a);a.type(setForm(1)+' [name="weight"]','35');a.submit(setForm(1));
+ const edit='[data-act="edit-set"][data-key="ex_0"][data-slot="0"]';a.click(edit);a.type(setForm(0)+' [name="reps"]','7');a.submit(setForm(0));
+ assert.equal(a.stored().sessions[0].entries.ex_0.sets[0].reps,7);assert.equal(a.q('#sets-ex_0').hidden,false);assert.equal(a.q('#sets-ex_1').hidden,true);assert.equal(a.d.activeElement,a.q(edit));
+});
+
+test('weight Enter advances to reps and button logging does not reopen an input',t=>{
+ const a=app(t),input=a.q(setForm(0)+' [name="weight"]');input.focus();a.type(setForm(0)+' [name="weight"]','40');
+ input.dispatchEvent(new a.w.KeyboardEvent('keydown',{key:'Enter',bubbles:true,cancelable:true}));
+ assert.equal(a.d.activeElement,a.q(setForm(0)+' [name="reps"]'));assert.equal(a.w.localStorage.getItem('wapp'),null);
+ a.q(setForm(0)+' button').focus();a.submit(setForm(0));assert.equal(a.d.activeElement,a.q(setForm(1)+' button'));
+});
+
+test('progress begins with one useful empty state and shows only exercises with history',t=>{
+ const a=app(t);a.click('#tab-progress');assert.equal(a.d.querySelectorAll('.progress-card').length,0);assert.match(a.q('#progress-view').textContent,/Your progress starts here/);
+ a.click('#progress-view [data-act="view"]');assert.equal(a.q('#workout-view').hidden,false);logFirst(a);a.click('#tab-progress');assert.equal(a.d.querySelectorAll('.progress-card').length,1);
+});
+
+test('theme changes from another tab update Settings without disturbing editor drafts',t=>{
+ const a=app(t);a.click('[data-act="settings"]');a.q('[data-act="theme"]').focus();
+ a.w.dispatchEvent(new a.w.StorageEvent('storage',{key:'wtheme',newValue:'dark'}));assert.match(a.q('[data-act="theme"]').textContent,/light/);assert.equal(a.d.activeElement,a.q('[data-act="theme"]'));
+ a.click('[data-act="manager"]');a.click('[data-act="edit-exercise"][data-id="ex_0"]');a.type('#sheet [name="name"]','Unsaved name');const input=a.q('#sheet [name="name"]');
+ a.w.dispatchEvent(new a.w.StorageEvent('storage',{key:'wtheme',newValue:'light'}));assert.equal(a.q('#sheet [name="name"]'),input);assert.equal(input.value,'Unsaved name');
+});
+
+test('set drafts remain protected from external reload after closing Settings',t=>{
+ const a=app(t,{state:M.defaults()});a.type(setForm(0)+' [name="weight"]','31.25');a.click('[data-act="settings"]');a.click('[data-act="close"]');
+ const other=M.defaults();M.logSet(other,'pull','ex_5',0,60,8);a.w.localStorage.setItem('wapp',JSON.stringify(other));a.w.dispatchEvent(new a.w.StorageEvent('storage',{key:'wapp'}));
+ assert.equal(a.q(setForm(0)+' [name="weight"]').value,'31.25');assert.match(a.q('#notice-text').textContent,/changed/);a.submit(setForm(0));assert.equal(a.stored().sessions[0].r,'pull');
 });

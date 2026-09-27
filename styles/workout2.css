@@ -88,6 +88,7 @@ label { display:block; min-width:0; font-size:12px; font-weight:500; }
 input { color:var(--label); background:var(--base); border:1px solid var(--border-strong); border-radius:9px; padding:10px 12px; width:100%; min-width:0; min-height:46px; font-size:17px; font-variant-numeric:tabular-nums; margin-top:5px; }
 input[aria-invalid="true"] { border-color:var(--red); }
 .field-error { color:var(--red); font-size:13px; grid-column:1/-1; margin-top:4px; }
+.set-action-short { display:none; }
 .set-submit { white-space:nowrap; min-height:46px; font-size:14px; }
 .set-summary { padding:8px 18px; min-height:60px; display:flex; align-items:center; gap:16px; border-top:1px solid var(--sep); font-variant-numeric:tabular-nums; }
 .set-summary>.text-button { margin-left:auto; color:var(--label-2); }
@@ -159,15 +160,15 @@ input[aria-invalid="true"] { border-color:var(--red); }
  .exercise-toggle:hover .exercise-name { color:var(--label-2); }
 }
 @media (max-width:540px) {
- .set-form { grid-template-columns:36px minmax(0,1fr) minmax(0,1fr); gap:10px; }
- .set-submit { grid-column:2/-1; }
+ .set-form { padding:12px; grid-template-columns:32px minmax(0,1fr) minmax(0,1fr) 48px; gap:8px; }
+ .set-form input { padding-inline:8px; }
+ .set-form .set-submit { padding:10px 6px; }
+ .set-action-label { display:none; }
+ .set-action-short { display:inline; }
  .page-heading { align-items:flex-start; }
  #routine-tools button { padding-inline:10px; }
  #routine-tools button span:last-child { display:none; }
  #notice { flex-wrap:wrap; }
- .exercise-toggle { flex-wrap:wrap; gap:4px 8px; }
- .exercise-name { flex-basis:calc(100% - 22px); }
- .exercise-state { order:2; width:100%; }
  .exercise-heading { align-items:flex-start; }
 }
 @media (max-width:380px) {

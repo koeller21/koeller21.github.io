@@ -95,7 +95,7 @@ function cardHTML(key){
     <span class="set-number">Set ${slot+1}</span>
     <label>Weight <span class="muted">kg</span><input name="weight" type="text" inputmode="decimal" autocomplete="off" enterkeyhint="next" value="${esc(val.w)}" required aria-label="${esc(def.name)}, set ${slot+1}, weight in kg"></label>
     <label>Reps<input name="reps" type="text" inputmode="numeric" autocomplete="off" enterkeyhint="done" value="${esc(val.reps)}" required aria-label="${esc(def.name)}, set ${slot+1}, reps"></label>
-    <button class="primary set-submit" type="submit">${set ? 'Save' : 'Log set '+(slot+1)}</button>
+    <button class="primary set-submit" type="submit" aria-label="${set?'Save':'Log'} ${esc(def.name)}, set ${slot+1}"><span class="set-action-label">${set ? 'Save' : 'Log set '+(slot+1)}</span><span class="set-action-short" aria-hidden="true">${set?'Save':'Log'}</span></button>
     <p class="field-error" role="alert" hidden></p></form>`;
   }else{
    html+=`<div class="set-summary"><span class="set-number">Set ${slot+1}</span><span class="${set ? 'logged' : 'muted'}">${set ? setText(set)+icon('check') : entry?.skipped ? 'Skipped' : 'Not logged'}</span>${editable ? button('edit-set',set ? 'Edit' : 'Enter',`data-key="${key}" data-slot="${slot}" aria-label="${set ? 'Edit' : 'Enter'} ${esc(def.name)}, set ${slot+1}"`) : ''}</div>`;
@@ -278,7 +278,7 @@ function reload(){
 function exportData(){
  const url=URL.createObjectURL(new Blob([JSON.stringify(state,null,2)],{type:'application/json'}));
  const a=document.createElement('a');a.href=url;a.download='workout-'+M.today()+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
- notice('Workout backup downloaded.');
+ notice('Backup download started.');
 }
 async function importFile(file){
  try{
