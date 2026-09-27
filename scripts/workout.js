@@ -277,6 +277,10 @@ function showPicker(){
  const used=currentNames(),available=state.ex.filter(e=>!e.archived&&!used.includes(e.id));
  sheet('Add to this workout',`<div class="action-list">${available.map(e=>button('pick',esc(e.name),`data-key="${e.id}"`)).join('') || '<p class="muted">All exercises are included.</p>'}</div>${button('new-for-session','＋ New exercise','','secondary')}`);
 }
+function revealAddedExercise(key){
+ const card=$('card-'+key);sheetReturnFocus=card.querySelector('.exercise-toggle');
+ closeSheet();card.scrollIntoView({block:'center'});
+}
 function fieldError(form,message,input){
  const el=form.querySelector('.field-error');el.textContent=message;el.hidden=false;
  if(input){input.setAttribute('aria-invalid','true');input.focus();}
@@ -363,7 +367,8 @@ document.addEventListener('submit',event=>{
   if(!Number.isInteger(min)||min<1||!Number.isInteger(max)||max<min||max>1000){fieldError(form,'Use whole-number reps, with minimum ≤ maximum (1–1,000).',inputs.min);return;}
   if(!Number.isFinite(inc)||inc<0||inc>10000){fieldError(form,'Enter an increase from 0 to 10,000 kg.',inputs.inc);return;}
   const savedId=key||M.id();
-  commit(add?'Exercise added to workout.':'Exercise saved.',s=>{let e=s.ex.find(e=>e.id===key);if(!e){e={id:savedId,archived:false};s.ex.push(e);}Object.assign(e,{name,min,max,inc});if(add)M.addExercise(s,routineId,savedId);},{after:()=>{if(add){activeExercise=savedId;closeSheet();}else if(sheetStack.length>1)backSheet();else closeSheet();}});
+  const saved=commit(add?'Exercise added to workout.':'Exercise saved.',s=>{let e=s.ex.find(e=>e.id===key);if(!e){e={id:savedId,archived:false};s.ex.push(e);}Object.assign(e,{name,min,max,inc});if(add)M.addExercise(s,routineId,savedId);},{after:()=>{if(add){activeExercise=savedId;}else if(sheetStack.length>1)backSheet();else closeSheet();}});
+  if(saved&&add)revealAddedExercise(savedId);
  }else if(form.dataset.form==='routine'){
   const name=inputs.name.value.trim(),key=routineDraft.id;
   if(!name){fieldError(form,'Enter a routine name.',inputs.name);return;}
@@ -393,8 +398,8 @@ document.addEventListener('click',event=>{
  }
  else if(act==='reopen')commit('Workout reopened.',s=>{s.sessions.find(s=>s.id===selectedSession().id).status='active';});
  else if(act==='new-workout')commit('New workout started.',s=>M.ensureSession(s,routineId),{after:()=>{activeExercise=null;clearRoutineDrafts();}});
- else if(act==='pickex')pushSheet(showPicker);
- else if(act==='pick')commit('Exercise added to workout.',s=>M.addExercise(s,routineId,key),{after:()=>{activeExercise=key;closeSheet();}});
+ else if(act==='pickex'){pushSheet(showPicker);sheetReturnFocus=el;}
+ else if(act==='pick'){if(commit('Exercise added to workout.',s=>M.addExercise(s,routineId,key),{after:()=>{activeExercise=key;}}))revealAddedExercise(key);}
  else if(act==='new-for-session')pushSheet(()=>showExerciseEditor(null,true));
  else if(act==='detail')pushSheet(()=>showDetail(key));
  else if(act==='delete-history')commit('History entry deleted.',s=>M.deleteHistory(s,id,key),{after:refreshSheet});

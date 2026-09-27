@@ -1,5 +1,5 @@
 // Network first; cache the workout app for offline reloads.
-const CACHE = 'wlog-v5';
+const CACHE = 'wlog-v6';
 const PRECACHE = [
  '/pages/workout.html', '/scripts/workout-model.js', '/scripts/workout.js', '/styles/workout.css',
  '/favicon.ico', '/manifest.json', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/apple-touch-icon.png'

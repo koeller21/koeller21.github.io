@@ -16,6 +16,7 @@ function app(t,{state,desktop=false,raw,theme,shippingDefaults=false}={}){
  if(theme)w.localStorage.setItem('wtheme',theme);
  for(const script of d.querySelectorAll('script:not([src])'))new vm.Script(script.textContent).runInContext(dom.getInternalVMContext());
  const media={matches:desktop,addEventListener(type,handler){this.onchange=handler;}};w.matchMedia=()=>media;
+ w.HTMLElement.prototype.scrollIntoView=function(){};
  w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};
  w.HTMLDialogElement.prototype.close=function(){this.open=false;this.dispatchEvent(new w.Event('close'));};
  new vm.Script(model).runInContext(dom.getInternalVMContext());
@@ -59,8 +60,16 @@ test('reload resumes the unfinished routine, including across midnight',t=>{
 });
 test('new exercise from the picker is added directly and closes the dialog',t=>{
  const a=app(t);a.click('#add-exercise');a.click('[data-act="new-for-session"]');a.type('#sheet [name="name"]','New lift');a.submit('#sheet form');
- const s=a.stored(),e=s.ex.find(e=>e.name==='New lift');assert(e);assert(s.sessions[0].ex.includes(e.id));assert.equal(a.q('#sheet').open,false);assert(a.d.getElementById('card-'+e.id));
+ const s=a.stored(),e=s.ex.find(e=>e.name==='New lift');assert(e);assert(s.sessions[0].ex.includes(e.id));assert.equal(a.q('#sheet').open,false);assert(a.d.getElementById('card-'+e.id));assert.equal(a.d.activeElement,a.q('#card-'+e.id+' .exercise-toggle'));
 });
+test('adding an existing exercise focuses its card, preserves set drafts and excludes duplicate picks',t=>{
+ const a=app(t);a.type(setForm(0)+' [name="weight"]','25');a.click('#add-exercise');a.click('[data-act="pick"][data-key="ex_5"]');
+ assert.equal(a.q('#sheet').open,false);assert.equal(a.d.activeElement,a.q('#card-ex_5 .exercise-toggle'));assert.equal(a.q('#card-ex_5 .exercise-toggle').getAttribute('aria-expanded'),'true');
+ assert.equal(a.stored().sessions[0].ex.filter(key=>key==='ex_5').length,1);assert(!a.stored().routines[0].ex.includes('ex_5'));
+ a.click('[data-act="expand"][data-key="ex_0"]');assert.equal(a.q(setForm(0)+' [name="weight"]').value,'25');
+ a.click('#add-exercise');assert.equal(a.d.querySelector('[data-act="pick"][data-key="ex_5"]'),null);a.click('[data-act="close"]');assert.equal(a.d.activeElement,a.q('#add-exercise'));
+});
+
 test('routine reorder persists and saving returns to the originating screen',t=>{
  const a=app(t);a.click('[data-act="edit-current-routine"]');a.click('[data-act="move-up"][data-key="ex_4"]');a.submit('#sheet form');
  assert.deepEqual(a.stored().routines[0].ex,['ex_0','ex_1','ex_2','ex_4','ex_3']);assert.equal(a.q('#sheet').open,false);

@@ -14,6 +14,12 @@ jsdom does not render layouts or implement native dialog focus trapping, mobile 
 
 ## Audit result — 2026-09-27
 
+### Add exercise touch checks
+
+Fresh-session picker opening and saving worked in both Chrome and WebKit; a completely unresponsive Add exercise button was not reproduced. Two visible/focus failures were confirmed: additions could remain partly below the viewport or behind the notification, and WebKit touch cancellation could return focus to a previous control. Added exercises now expand, receive focus on their heading, and scroll clear of the notification. Cancelling returns to Add exercise without opening a keyboard.
+
+92 model/UI/worker tests pass. `node tests/workout-picker-audit.cjs` verifies real touch input for picking and creating exercises, logging an added set, duplicate exclusion, Undo, reload, cancellation, and a library with 40 extra exercises. The final run passed 16 combinations: Chrome and WebKit at 320 × 568, 390 × 844, 844 × 390, and 1280 × 900, each in both themes. Mobile screenshots were inspected. Set `PICKER_ENGINES=chromium,webkit` to run both engines; the default is Chromium. The script uses the same optional `PLAYWRIGHT_MODULE`, `CHROME_BIN`, and `AUDIT_OUTPUT` settings as the full audit, plus Playwright's standard `PLAYWRIGHT_BROWSERS_PATH` when installed browsers use a custom location. Desktop WebKit touch emulation does not establish physical iPhone keyboard or OS behavior.
+
 ### Full interaction and failure audit
 
 The current workout app received the full interaction audit after replacing the original logger at `pages/workout.html`; all four HTML pages also passed loading/layout smoke checks at 390 and 1280 px, and all 16 local links/assets resolved. No production storage or personal browser profile was used.
@@ -64,6 +70,6 @@ The Midnight theme pass checked 320, 390 and 1440 px in isolated Chrome. The req
 
 An earlier UI pass measured switching to Exercises & routines at a median 12.7 ms across ten synchronous interaction-plus-layout measurements with Chrome CPU throttling set to 4×, using the previous defaults. This was not remeasured for the larger Full Body program. These measurements exclude network latency and subsequent painting; they are not real-device interaction or frame-rate guarantees.
 
-The four production HTML/CSS/JS assets total 79,196 bytes uncompressed and 23,377 bytes with local gzip compression (favicon excluded). The shared offline worker adds 1,294 bytes uncompressed / 601 bytes gzip. There are no runtime package dependencies, external fonts, icon downloads, or a build step.
+The four production HTML/CSS/JS assets total 79,504 bytes uncompressed and 23,477 bytes with local gzip compression (favicon excluded). The shared offline worker adds 1,294 bytes uncompressed / 601 bytes gzip. There are no runtime package dependencies, external fonts, icon downloads, or a build step.
 
 Physical iOS/Android keyboard behavior and device-specific scrolling still require real-device checks; desktop mobile emulation does not establish those behaviors.

@@ -19,7 +19,7 @@ test('worker precaches the canonical app and removes only its own obsolete cache
 
 test('worker serves the offline app and versioned assets, while misses are network errors',async()=>{
  const w=worker();await w.event('install');w.setNetwork(async()=>{throw new Error('offline');});
- for(const file of ['/pages/workout.html','/scripts/workout.js?v=15','/scripts/workout-model.js?v=15','/styles/workout.css?v=15']){const response=await w.event('fetch',new Request('https://workout.test'+file));assert.equal(response.status,200);assert.match(await response.text(),/^precache:/);}
+ for(const file of ['/pages/workout.html','/scripts/workout.js?v=16','/scripts/workout-model.js?v=16','/styles/workout.css?v=16']){const response=await w.event('fetch',new Request('https://workout.test'+file));assert.equal(response.status,200);assert.match(await response.text(),/^precache:/);}
  assert.equal((await w.event('fetch',new Request('https://workout.test/missing'))).type,'error');
  assert.equal(await w.event('fetch',new Request('https://elsewhere.test/script.js')),undefined);
  assert.equal(await w.event('fetch',new Request('https://workout.test/save',{method:'POST'})),undefined);

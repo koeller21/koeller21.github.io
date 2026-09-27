@@ -79,6 +79,7 @@ nav>.routine-link { color:var(--label-2); font-size:14px; }
 .tabs button { flex:1; padding:8px 16px; font-size:14px; font-weight:500; color:var(--label-2); }
 .tabs button[aria-pressed="true"] { background:var(--base); color:var(--label); box-shadow:0 1px 3px #0001; }
 .exercise-card,.progress-card { background:var(--card-bg); border:1px solid var(--sep); border-radius:14px; margin-bottom:10px; }
+.exercise-card { scroll-margin-block:16px 88px; }
 .exercise-card.is-active { border-color:var(--border-strong); }
 .exercise-heading { display:flex; align-items:center; padding:6px 8px 0; gap:2px; }
 .exercise-toggle { flex:1; display:flex; gap:10px; align-items:center; text-align:left; min-width:0; padding:8px 10px; }
