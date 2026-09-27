@@ -11,7 +11,7 @@ function assert(ok, message){ if(!ok) throw new Error(message); }
 function object(v){ return v && typeof v === 'object' && !Array.isArray(v); }
 function number(v, min, max){ return typeof v === 'number' && Number.isFinite(v) && v >= min && v <= max; }
 function name(v){ return typeof v === 'string' && v.trim().length > 0 && v.length <= 100; }
-function identifier(v){ return typeof v === 'string' && /^[a-zA-Z0-9_-]{1,100}$/.test(v) && !['__proto__','constructor','prototype'].includes(v); }
+function identifier(v){ return typeof v === 'string' && /^[a-zA-Z0-9_-]{1,100}$/.test(v) && !own(Object.prototype,v) && v!=='prototype'; }
 function date(v){ return typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) && !isNaN(Date.parse(v)) && new Date(v).toISOString().slice(0,10) === v; }
 function unique(values){ return new Set(values).size === values.length; }
 function exerciseRules(e){ return name(e.name) && Number.isInteger(e.min) && Number.isInteger(e.max) && number(e.min,1,1000) && number(e.max,e.min,1000) && number(e.inc,0,10000); }
@@ -127,10 +127,10 @@ function skipExercise(state,routineId,key,skipped){
  const s=ensureSession(state,routineId);assert(s.ex.includes(key),'Exercise is not in this workout.');
  const e=s.entries[key] ||= {sets:[null,null],skipped:false};e.skipped=skipped;return s;
 }
-function finish(state,routineId,skipRemaining){
+function finish(state,routineId){
  const s=sessionFor(state,routineId);assert(s && stats(s).logged,'Log at least one set before finishing.');
- if(skipRemaining) s.ex.forEach(key=>{const e=s.entries[key] ||= {sets:[null,null],skipped:false};if(e.sets.some(x=>!x))e.skipped=true;});
- assert(stats(s).remaining===0,'Log or skip the remaining sets.');s.status='finished';return s;
+ s.ex.forEach(key=>{const e=s.entries[key] ||= {sets:[null,null],skipped:false};e.skipped=e.sets.some(set=>!set);});
+ s.status='finished';return s;
 }
 function deleteHistory(state,sessionId,key){
  const s=state.sessions.find(s=>s.id===sessionId);assert(s && own(s.entries,key),'History entry no longer exists.');
@@ -142,7 +142,7 @@ function reorder(values,from,to){assert(from>=0 && from<values.length && to>=0 &
 function archiveExercise(state,key){
  const e=state.ex.find(e=>e.id===key);assert(e,'Exercise no longer exists.');e.archived=true;
  state.routines.forEach(r=>{r.ex=r.ex.filter(x=>x!==key);});
- state.sessions.filter(s=>s.status==='active').forEach(s=>{if(s.ex.includes(key)){const entry=s.entries[key] ||= {sets:[null,null],skipped:false};entry.skipped=true;}});
+ state.sessions.filter(s=>s.status==='active').forEach(s=>{if(s.ex.includes(key)){const entry=s.entries[key] ||= {sets:[null,null],skipped:false};entry.skipped=entry.sets.some(set=>!set);}});
 }
 const api={clone,id,today,round,defaults,normalize,stats,index,suggested,nextTarget,estimate,changePercent,sessionFor,ensureSession,logSet,skipExercise,finish,deleteHistory,addExercise,reorder,archiveExercise};
 if(typeof module==='object' && module.exports) module.exports=api;else root.WorkoutModel=api;

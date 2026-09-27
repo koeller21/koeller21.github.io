@@ -1,48 +1,55 @@
 <!DOCTYPE html>
-<html lang="en">
-
+<html lang="en" data-theme="light">
 <head>
-	<meta charset="utf-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<meta name="Author" content="Arne Koeller">
-
-	<title>workout log</title>
-
-	<script>try{document.documentElement.dataset.theme=localStorage.getItem('wtheme')||'dark'}catch(e){}</script>
-	<meta name="theme-color" content="#0d1117">
-	<link rel="manifest" href="../manifest.json">
-	<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
-	<!-- bump ?v= on functional changes so cached clients atomically pick up matching js+css -->
-	<link rel="stylesheet" href="../styles/workout.css?v=4">
-	<link rel="icon" type="image/x-icon" href="../favicon.ico">
+ <meta charset="utf-8">
+ <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+ <meta name="theme-color" content="#ffffff">
+ <title>Workout</title>
+ <script>try{document.documentElement.dataset.theme=localStorage.getItem('wtheme')==='dark'?'dark':'light'}catch(e){}</script>
+ <link rel="stylesheet" href="../styles/workout.css?v=15">
+ <link rel="icon" href="../favicon.ico">
+ <link rel="manifest" href="../manifest.json">
+ <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+ <script defer src="../scripts/workout-model.js?v=15"></script>
+ <script defer src="../scripts/workout.js?v=15"></script>
 </head>
-
 <body>
-
-	<div class="container">
-		<a href="../index.html">back home</a>
-		<p id="stat"><button id="kc" data-act="cal">0 kcal</button><button id="kw" data-act="wt">- kg</button></p>
-		<div class="scroll">
-			<table>
-				<thead><tr><th>exercise</th><th>now</th><th>next</th><th></th></tr></thead>
-				<tbody id="rows"></tbody>
-			</table>
-		</div>
-
-		<footer>
-			<a href="#" data-act="addex">add exercise</a>
-			<a href="#" data-act="about">progression rules</a>
-			<a href="#" data-act="export">export</a>
-			<a href="#" data-act="import">import</a>
-			<a href="#" data-act="theme">toggle theme</a>
-			<input type="file" id="importfile" accept="application/json" hidden>
-		</footer>
-	</div>
-
-	<div id="ov" hidden><div id="sheet"></div></div>
-
-	<script src="../scripts/workout.js?v=13"></script>
-
+ <aside id="drawer" aria-label="Workout navigation" aria-hidden="true" inert>
+  <div class="drawer-title"><strong>Workout</strong><button id="drawer-close" type="button" data-act="close-drawer" class="icon-button" aria-label="Close navigation"><span data-icon="close"></span></button></div>
+  <nav aria-label="Routines"><h2 class="eyebrow">Routines</h2><div id="routines"></div><button class="routine-link" data-act="edit-routine"><span data-icon="plus"></span><span>New routine</span></button></nav>
+  <button class="settings-link" data-act="settings"><span data-icon="settings"></span><span>Settings</span></button>
+ </aside>
+ <button id="scrim" type="button" data-act="close-drawer" aria-label="Close navigation" tabindex="-1" hidden></button>
+ <div id="pane">
+  <header id="topbar"><button id="menu" class="menu-button" type="button" data-act="menu" aria-label="Open navigation" aria-expanded="false" aria-controls="drawer"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 6h14M3 12h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button><span class="small muted">Workout</span></header>
+  <main id="scroll">
+   <div class="page-heading"><h1 id="title" tabindex="-1"></h1><div id="routine-tools"><button class="text-button" type="button" data-act="edit-current-routine" aria-label="Edit routine" title="Edit routine"><span data-icon="edit"></span><span>Edit routine</span></button></div></div>
+   <p id="subtitle" class="muted"></p>
+   <div id="tabs" class="tabs" role="group" aria-label="Routine view"><button id="tab-workout" data-act="view" data-view="workout" aria-pressed="true">Workout</button><button id="tab-progress" data-act="view" data-view="progress" aria-pressed="false">Progress</button></div>
+   <section id="empty" hidden><p>No active routines. Create one or restore one in Settings.</p><button class="primary" data-act="edit-routine">Create a routine</button></section>
+   <section id="workout-view" aria-label="Current workout">
+    <p id="no-exercises" class="empty-note" hidden>No exercises yet.</p>
+    <div id="cards"></div>
+    <button id="add-exercise" class="secondary full" data-act="pickex"><span data-icon="plus"></span><span>Add exercise</span></button>
+    <div class="workout-actions"><button id="finish" class="primary full" data-act="finish">Finish workout</button><button id="reopen" class="secondary" data-act="reopen" hidden>Reopen workout</button><button id="new-workout" class="primary" data-act="new-workout" hidden>Start another workout</button></div>
+    <button id="discard" class="text-button danger" data-act="discard" hidden>Discard workout</button>
+   </section>
+   <section id="progress-view" aria-label="Exercise progress" hidden></section>
+  </main>
+ </div>
+ <section id="app-error" hidden><p id="app-error-text" role="alert"></p><button data-act="export-raw" class="secondary">Download saved data</button><button data-act="import" class="primary">Import a backup</button></section>
+ <div id="notice" hidden><span id="notice-text" role="status" aria-live="polite"></span><button id="undo" data-act="undo" hidden>Undo</button><button data-act="reload" class="reload-button">Reload</button><button data-act="dismiss-notice" class="icon-button" aria-label="Dismiss message"><span data-icon="close"></span></button></div>
+ <dialog id="sheet" aria-labelledby="sheet-title">
+  <div class="sheet-layout">
+   <aside id="settings-nav" aria-label="Settings categories" hidden></aside>
+   <div class="sheet-main">
+    <header class="sheet-header"><button id="sheet-back" class="icon-button" data-act="back" aria-label="Go back" hidden><span data-icon="back"></span></button><h2 id="sheet-title" tabindex="-1"></h2><button class="sheet-close icon-button" data-act="close" aria-label="Close dialog"><span data-icon="close"></span></button></header>
+    <div id="sheet-unsaved" class="unsaved-prompt" role="alert" hidden><p>Unsaved changes</p><div><button class="secondary" data-act="keep-editing">Keep editing</button><button class="text-button danger" data-act="discard-edits">Discard changes</button></div></div>
+    <div id="sheet-content"></div>
+    <div id="sheet-notice" class="sheet-notice" hidden><span id="sheet-notice-text" role="status" aria-live="polite"></span><button id="sheet-undo" data-act="undo" hidden>Undo</button><button data-act="reload" class="reload-button">Reload</button><button data-act="dismiss-notice" class="icon-button" aria-label="Dismiss message"><span data-icon="close"></span></button></div>
+   </div>
+  </div>
+ </dialog>
+ <input type="file" id="importfile" accept="application/json,.json" hidden>
 </body>
-
 </html>

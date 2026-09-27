@@ -3,14 +3,14 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const vm=require('node:vm');
 const {JSDOM,VirtualConsole}=require('jsdom');
-const M=require('../scripts/workout2-model.js');
-const {fixture}=require('./workout2-fixtures.js');
-const html=fs.readFileSync(require.resolve('../pages/workout2.html'),'utf8');
-const model=fs.readFileSync(require.resolve('../scripts/workout2-model.js'),'utf8');
-const ui=fs.readFileSync(require.resolve('../scripts/workout2.js'),'utf8');
+const M=require('../scripts/workout-model.js');
+const {fixture}=require('./workout-fixtures.js');
+const html=fs.readFileSync(require.resolve('../pages/workout.html'),'utf8');
+const model=fs.readFileSync(require.resolve('../scripts/workout-model.js'),'utf8');
+const ui=fs.readFileSync(require.resolve('../scripts/workout.js'),'utf8');
 function app(t,{state,desktop=false,raw,theme,shippingDefaults=false}={}){
  const errors=[],virtualConsole=new VirtualConsole();virtualConsole.on('jsdomError',error=>errors.push(error));
- const dom=new JSDOM(html,{url:'https://workout.test/pages/workout2.html',runScripts:'outside-only',pretendToBeVisual:true,virtualConsole});
+ const dom=new JSDOM(html,{url:'https://workout.test/pages/workout.html',runScripts:'outside-only',pretendToBeVisual:true,virtualConsole});
  const w=dom.window,d=w.document;
  if(raw!==undefined)w.localStorage.setItem('wapp-v4',raw);else if(state)w.localStorage.setItem('wapp-v4',JSON.stringify(state));
  if(theme)w.localStorage.setItem('wtheme',theme);
@@ -46,10 +46,12 @@ test('inline set logging retains independent weights, sibling drafts and unaffec
  a.submit(setForm(1));assert.deepEqual(a.stored().sessions[0].entries.ex_0.sets,[{w:40,reps:8},{w:35,reps:6}]);
  assert.match(a.q('#subtitle').textContent,/2\/10/);assert.equal(a.q('#finish').disabled,false);
 });
-test('finish asks about missing sets, completes explicitly and Undo restores the active workout',t=>{
- const a=app(t);logFirst(a);a.click('#finish');assert(a.q('#sheet').open);assert.match(a.q('#sheet-content').textContent,/9 sets/);
- a.click('#confirm-finish');assert.equal(a.stored().sessions[0].status,'finished');assert.equal(a.q('#reopen').hidden,false);
- a.click('#undo');assert.equal(a.stored().sessions[0].status,'active');assert.match(a.q('#subtitle').textContent,/In progress/);
+test('finish skips unlogged sets without a dialog and Undo restores the active workout',t=>{
+ const a=app(t);assert.equal(a.d.querySelector('[data-act="skip"]'),null);logFirst(a);const before=a.stored();a.click('#finish');
+ assert.equal(a.q('#sheet').open,false);const session=a.stored().sessions[0];assert.equal(session.status,'finished');
+ assert.deepEqual(M.stats(session),{logged:1,skipped:9,total:10,remaining:0});assert.deepEqual(session.entries.ex_0.sets,[{w:40,reps:8},null]);
+ assert.equal(a.q('#card-ex_0 .exercise-state').textContent,'1/2');assert.equal(a.q('#reopen').hidden,false);assert.equal(a.d.activeElement,a.q('#reopen'));
+ a.click('#undo');assert.deepEqual(a.stored(),before);assert.equal(a.q('#finish').hidden,false);assert.equal(a.d.querySelector('[data-act="skip"]'),null);
 });
 test('reload resumes the unfinished routine, including across midnight',t=>{
  const s=fixture();M.logSet(s,'pull','ex_5',0,40,8);s.sessions[0].d='2020-01-01';
@@ -68,7 +70,7 @@ test('duplicate exercise names and invalid numeric inputs display inline errors'
  a.click('#add-exercise');a.click('[data-act="new-for-session"]');a.type('#sheet [name="name"]','Overhead Press');a.submit('#sheet form');assert.match(a.q('#sheet .field-error').textContent,/already exists/);
 });
 test('deleting one of two same-day history entries leaves the other intact and supports Undo',t=>{
- const s=fixture();const first=M.logSet(s,'push','ex_4',0,10,12);M.finish(s,'push',true);const second=M.logSet(s,'pull','ex_4',0,20,12);M.finish(s,'pull',true);
+ const s=fixture();const first=M.logSet(s,'push','ex_4',0,10,12);M.finish(s,'push');const second=M.logSet(s,'pull','ex_4',0,20,12);M.finish(s,'pull');
  const a=app(t,{state:s});a.click('[data-act="routine"][data-id="push"]');a.click('[data-act="detail"][data-key="ex_4"]');a.click(`[data-act="delete-history"][data-id="${second.id}"]`);
  assert.equal(a.stored().sessions.length,1);assert.equal(a.stored().sessions[0].id,first.id);assert.equal(a.q('#sheet-notice').hidden,false);assert.equal(a.q('#notice').hidden,true);a.click('#sheet-undo');assert.equal(a.stored().sessions.length,2);
 });
@@ -104,7 +106,7 @@ test('stale draft cannot overwrite a change from another tab',t=>{
  a.w.dispatchEvent(new a.w.StorageEvent('storage',{key:'wapp-v4'}));a.submit(setForm(0));assert.equal(a.stored().sessions[0].r,'pull');assert.match(a.q(setForm(0)+' .field-error').textContent,/another tab/);
 });
 test('zero-load progress renders no Infinity or NaN and charts have responsive viewBoxes',t=>{
- const s=fixture();M.logSet(s,'push','ex_0',0,0,8);M.finish(s,'push',true);s.sessions[0].d='2020-01-01';M.logSet(s,'push','ex_0',0,40,8);M.finish(s,'push',true);
+ const s=fixture();M.logSet(s,'push','ex_0',0,0,8);M.finish(s,'push');s.sessions[0].d='2020-01-01';M.logSet(s,'push','ex_0',0,40,8);M.finish(s,'push');
  const a=app(t,{state:s});a.click('[data-act="routine"][data-id="push"]');a.click('#tab-progress');assert(!/Infinity|NaN/.test(a.q('#progress-view').textContent));assert(a.q('#progress-view svg').hasAttribute('viewBox'));
 });
 test('corrupt saved data is not silently replaced by defaults',t=>{
@@ -120,9 +122,9 @@ test('archive and restore actions preserve exercise history and have clear desti
  assert(a.stored().ex[0].archived);assert.equal(a.stored().sessions[0].entries.ex_0.sets[0].w,40);assert.equal(a.q('#sheet-title').textContent,'Overhead Press');
  a.click('#sheet [data-act="edit-exercise"]');a.click('[data-act="restore-exercise"]');assert.equal(a.stored().ex[0].archived,false);
 });
-test('skipping an exercise preserves keyboard focus on its restore action',t=>{
- const a=app(t),skip=a.q('[data-act="skip"][data-key="ex_0"]');skip.focus();skip.click();
- assert.equal(a.d.activeElement,a.q('[data-act="unskip"][data-key="ex_0"]'));assert.match(a.q('#subtitle').textContent,/2 skipped/);
+test('reopened skipped sets can be restored with keyboard focus on their input',t=>{
+ const a=app(t);logFirst(a);a.click('#finish');a.click('#reopen');const restore=a.q('[data-act="unskip"][data-key="ex_0"]');restore.focus();restore.click();
+ assert.equal(a.d.activeElement,a.q(setForm(1)+' input'));assert.match(a.q('#subtitle').textContent,/8 skipped/);assert.equal(a.stored().sessions[0].entries.ex_0.skipped,false);
 });
 test('undoing new exercise creation while its detail dialog is open closes obsolete detail safely',t=>{
  const a=app(t);a.click('#add-exercise');a.click('[data-act="new-for-session"]');a.type('#sheet [name="name"]','Temporary lift');a.submit('#sheet form');
@@ -130,7 +132,7 @@ test('undoing new exercise creation while its detail dialog is open closes obsol
  assert.equal(a.q('#sheet').open,false);assert(!a.stored().ex.some(e=>e.id===key));
 });
 test('stylesheet parses, reduced motion retains navigation position, and old sheet workarounds are gone',t=>{
- const a=app(t),css=fs.readFileSync(require.resolve('../styles/workout2.css'),'utf8'),style=a.d.createElement('style');style.textContent=css;a.d.head.append(style);assert(style.sheet.cssRules.length>0);
+ const a=app(t),css=fs.readFileSync(require.resolve('../styles/workout.css'),'utf8'),style=a.d.createElement('style');style.textContent=css;a.d.head.append(style);assert(style.sheet.cssRules.length>0);
  assert.match(css,/\.is-open #pane \{ transform:translateX\(var\(--dw\)\)/);assert(!/prefers-reduced-motion[^]*transform:none/.test(css));
  assert(!/visualViewport|pointercancel|setPointerCapture|typeval|\.blur\(/.test(ui));
 });
@@ -143,10 +145,10 @@ test('a complete custom-routine journey supports creation, logging, correction, 
  logFirst(a);a.type(setForm(1)+' [name="weight"]','37,5');a.type(setForm(1)+' [name="reps"]','7');a.submit(setForm(1));
  a.click('[data-act="edit-set"][data-key="ex_0"][data-slot="0"]');a.type(setForm(0)+' [name="reps"]','6');a.submit(setForm(0));
  assert.deepEqual(a.stored().sessions[0].entries.ex_0.sets,[{w:40,reps:6},{w:37.5,reps:7}]);
- a.click('[data-act="expand"][data-key="ex_1"]');a.click('[data-act="skip"][data-key="ex_1"]');a.click('#finish');assert.equal(a.q('#sheet').open,false);assert.equal(a.stored().sessions[0].status,'finished');
+ a.click('[data-act="expand"][data-key="ex_1"]');a.click('#finish');assert.equal(a.q('#sheet').open,false);assert.equal(a.stored().sessions[0].status,'finished');
  a.click('#reopen');assert.equal(a.stored().sessions[0].status,'active');a.click('[data-act="edit-set"][data-key="ex_1"][data-slot="1"]');
  const form='#card-ex_1 form[data-slot="1"]';a.type(form+' [name="weight"]','20');a.type(form+' [name="reps"]','8');a.submit(form);
- a.click('#finish');a.click('#confirm-finish');assert.equal(a.stored().sessions[0].entries.ex_1.sets[1].w,20);
+ a.click('#finish');assert.equal(a.stored().sessions[0].entries.ex_1.sets[1].w,20);
  a.click('#new-workout');assert.equal(a.stored().sessions.length,2);assert.equal(a.stored().sessions[1].r,routine.id);assert.equal(a.stored().sessions[1].status,'active');assert.match(a.q('#subtitle').textContent,/0\/4/);
  a.click('#discard');a.click('#confirm-discard');assert.equal(a.stored().sessions.length,1);a.click('#undo');assert.equal(a.stored().sessions.length,2);
 });
@@ -154,10 +156,10 @@ test('an empty planned workout can be discarded without counting as finished',t=
  const a=app(t);a.click('#add-exercise');a.click('[data-act="pick"][data-key="ex_5"]');assert.equal(a.q('#finish').disabled,true);assert.equal(a.q('#discard').hidden,false);
  a.click('#discard');a.click('#confirm-discard');assert.equal(a.stored().sessions.length,0);assert.equal(a.q('#discard').hidden,true);assert.equal(a.q('#title').textContent,'Push');
 });
-test('an explicitly skipped set can be entered directly and sibling weights stay independent',t=>{
- const a=app(t);a.click('[data-act="skip"][data-key="ex_0"]');a.click('[data-act="edit-set"][data-key="ex_0"][data-slot="1"]');
+test('an automatically skipped set can be entered after reopening without changing its logged sibling',t=>{
+ const a=app(t);logFirst(a);a.click('#finish');a.click('#reopen');a.click('[data-act="edit-set"][data-key="ex_0"][data-slot="1"]');
  assert.equal(a.d.activeElement,a.q(setForm(1)+' input'));a.type(setForm(1)+' [name="weight"]','22.5');a.type(setForm(1)+' [name="reps"]','7');a.submit(setForm(1));
- assert.deepEqual(a.stored().sessions[0].entries.ex_0.sets,[null,{w:22.5,reps:7}]);
+ assert.deepEqual(a.stored().sessions[0].entries.ex_0.sets,[{w:40,reps:8},{w:22.5,reps:7}]);
 });
 test('exercise rename preserves stable IDs, routine membership and historical records',t=>{
  const s=fixture();M.logSet(s,'push','ex_0',0,40,8);const a=app(t,{state:s});a.click('[data-act="detail"][data-key="ex_0"]');a.click('#sheet [data-act="edit-exercise"]');a.type('#sheet [name="name"]','Strict press');a.submit('#sheet form');
@@ -300,18 +302,67 @@ test('optional-day editing is saved and remains optional after renaming or reord
 });
 
 test('per-set suggestions retain a lighter second set and do not force rep increases',t=>{
- const s=M.defaults();M.logSet(s,'full_a','incline_press',0,40,12);M.logSet(s,'full_a','incline_press',1,35,10);M.finish(s,'full_a',true);s.sessions[0].d='2020-01-01';
+ const s=M.defaults();M.logSet(s,'full_a','incline_press',0,40,12);M.logSet(s,'full_a','incline_press',1,35,10);M.finish(s,'full_a');s.sessions[0].d='2020-01-01';
  const a=app(t,{state:s,shippingDefaults:true});a.click('[data-act="routine"][data-id="full_a"]');
  const base='#card-incline_press form';assert.equal(a.q(base+'[data-slot="0"] [name="weight"]').value,'40');assert.equal(a.q(base+'[data-slot="1"] [name="weight"]').value,'35');assert.equal(a.q(base+'[data-slot="1"] [name="reps"]').value,'10');
 });
 
 test('both sets reaching the top suggests the increment independently for each set',t=>{
- const s=M.defaults();M.logSet(s,'full_a','incline_press',0,40,12);M.logSet(s,'full_a','incline_press',1,35,12);M.finish(s,'full_a',true);s.sessions[0].d='2020-01-01';
+ const s=M.defaults();M.logSet(s,'full_a','incline_press',0,40,12);M.logSet(s,'full_a','incline_press',1,35,12);M.finish(s,'full_a');s.sessions[0].d='2020-01-01';
  const a=app(t,{state:s,shippingDefaults:true});a.click('[data-act="routine"][data-id="full_a"]');
  assert.equal(a.q('#card-incline_press form[data-slot="0"] [name="weight"]').value,'42.5');assert.equal(a.q('#card-incline_press form[data-slot="1"] [name="weight"]').value,'37.5');assert.match(a.q('#card-incline_press .exercise-context').textContent,/Next: 42.5 \/ 37.5 kg/);
 });
 
 test('recovery prompt explains a plateau without changing either load',t=>{
- const s=M.defaults();for(let i=1;i<=3;i++){M.logSet(s,'full_a','incline_press',0,40,7);M.logSet(s,'full_a','incline_press',1,35,6);M.finish(s,'full_a',true);s.sessions.at(-1).d=`2020-01-0${i}`;}
+ const s=M.defaults();for(let i=1;i<=3;i++){M.logSet(s,'full_a','incline_press',0,40,7);M.logSet(s,'full_a','incline_press',1,35,6);M.finish(s,'full_a');s.sessions.at(-1).d=`2020-01-0${i}`;}
  const a=app(t,{state:s,shippingDefaults:true});a.click('[data-act="routine"][data-id="full_a"]');assert.equal(a.q('#card-incline_press form[data-slot="0"] [name="weight"]').value,'40');a.click('[data-act="training-help"]');assert.match(a.q('#sheet-content').textContent,/Load never drops automatically/);assert.equal(a.q('#sheet-title').textContent,'Progression rules');
+});
+
+
+test('explicit Reload recovers from another-tab conflict after discarding a set draft',t=>{
+ const a=app(t,{state:fixture()});a.type(setForm(0)+' [name="weight"]','31.25');
+ const other=fixture();M.logSet(other,'push','ex_0',0,55,7);a.w.localStorage.setItem('wapp-v4',JSON.stringify(other));a.w.dispatchEvent(new a.w.StorageEvent('storage',{key:'wapp-v4'}));
+ a.click('#notice [data-act="reload"]');assert.match(a.q('#card-ex_0 .logged').textContent,/55 kg/);
+ a.type(setForm(1)+' [name="weight"]','50');a.submit(setForm(1));assert.equal(a.stored().sessions[0].entries.ex_0.sets[1].w,50);
+});
+
+test('an import finishing while an editor is dirty preserves the editor until discard is chosen',async t=>{
+ const a=app(t,{desktop:true});let resolve;const file={size:100,text:()=>new Promise(r=>resolve=r)};const pending=a.w.importFile(file);
+ a.click('[data-act="settings"]');a.click('[data-act="edit-exercise"][data-id="ex_0"]');a.type('#sheet [name="name"]','Keep my edit');
+ resolve(JSON.stringify(fixture()));await pending;assert.equal(a.q('#sheet-title').textContent,'Edit exercise');assert.equal(a.q('#sheet [name="name"]').value,'Keep my edit');assert.equal(a.q('#sheet-unsaved').hidden,false);
+ a.click('[data-act="discard-edits"]');assert.equal(a.q('#sheet-title').textContent,'Replace workout data?');
+});
+
+test('switching routines retains separate drafts for a shared exercise',t=>{
+ const a=app(t);a.click('[data-act="expand"][data-key="ex_4"]');a.type('#card-ex_4 form[data-slot="0"] [name="weight"]','31.25');
+ a.click('[data-act="routine"][data-id="pull"]');a.click('[data-act="expand"][data-key="ex_4"]');assert.equal(a.q('#card-ex_4 form[data-slot="0"] [name="weight"]').value,'');a.type('#card-ex_4 form[data-slot="0"] [name="weight"]','20');
+ a.click('[data-act="routine"][data-id="push"]');a.click('[data-act="expand"][data-key="ex_4"]');assert.equal(a.q('#card-ex_4 form[data-slot="0"] [name="weight"]').value,'31.25');
+ a.click('[data-act="routine"][data-id="pull"]');a.click('[data-act="expand"][data-key="ex_4"]');assert.equal(a.q('#card-ex_4 form[data-slot="0"] [name="weight"]').value,'20');
+});
+
+
+test('numeric input fuzz rejects invalid sets without changing saved data',t=>{
+ const a=app(t,{state:fixture()}),before=a.w.localStorage.getItem('wapp-v4');
+ const invalid=['',' ','-1','+1','1e3','Infinity','NaN','0x10','1.2.3','1,2,3','1/2','40kg','<script>','100001','999999999999999999999999999999999999999999999'];
+ for(const value of invalid){a.type(setForm(0)+' [name="weight"]',value);a.submit(setForm(0));assert.equal(a.q(setForm(0)+' .field-error').hidden,false,value);assert.equal(a.w.localStorage.getItem('wapp-v4'),before,value);}
+ a.type(setForm(0)+' [name="weight"]','12,5');for(const value of [...invalid.filter(v=>v!=='+1'),'0','.5','1.5','1001']){a.type(setForm(0)+' [name="reps"]',value);a.submit(setForm(0));assert.equal(a.q(setForm(0)+' .field-error').hidden,false,value);assert.equal(a.w.localStorage.getItem('wapp-v4'),before,value);}
+ a.type(setForm(0)+' [name="reps"]','8');a.submit(setForm(0));assert.equal(a.stored().sessions[0].entries.ex_0.sets[0].w,12.5);
+});
+
+test('imported names remain text in cards, navigation, history and editors',t=>{
+ const s=fixture(),payload='<img src=x onerror="alert(1)"> & <script>bad()</script>';s.ex[0].name=payload;s.routines[0].name=payload;
+ const a=app(t,{state:s});assert.equal(a.q('#card-ex_0 .exercise-name').textContent,payload);assert.equal(a.q('#title').textContent,payload);assert.equal(a.d.querySelector('#cards img,#routines img'),null);
+ a.click('[data-act="detail"][data-key="ex_0"]');assert.equal(a.q('#sheet-title').textContent,payload);a.click('[data-act="edit-exercise"][data-id="ex_0"]');assert.equal(a.q('#sheet [name="name"]').value,payload);assert.equal(a.d.querySelector('#sheet img,#sheet script'),null);
+});
+
+
+test('Undo asks before replacing an unsaved editor draft',t=>{
+ const a=app(t);logFirst(a);a.click('[data-act="edit-current-routine"]');a.type('#sheet [name="name"]','Keep my routine draft');a.click('#sheet-undo');
+ assert.equal(a.q('#sheet [name="name"]').value,'Keep my routine draft');assert.equal(a.q('#sheet-unsaved').hidden,false);assert.equal(a.stored().sessions.length,1);
+ a.click('[data-act="discard-edits"]');assert.equal(a.stored().sessions.length,0);assert.equal(a.q('#sheet [name="name"]').value,'Push');
+});
+
+test('another tab repairing corrupt storage restores the app and allows logging',t=>{
+ const a=app(t,{raw:'{broken'});assert.equal(a.q('#app-error').hidden,false);a.w.localStorage.setItem('wapp-v4',JSON.stringify(fixture()));a.w.dispatchEvent(new a.w.StorageEvent('storage',{key:'wapp-v4'}));
+ assert.equal(a.q('#app-error').hidden,true);assert.equal(a.q('#pane').hidden,false);logFirst(a);assert.equal(a.stored().sessions[0].entries.ex_0.sets[0].w,40);
 });

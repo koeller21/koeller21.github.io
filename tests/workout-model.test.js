@@ -1,7 +1,7 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const M=require('../scripts/workout2-model.js');
-const {fixture}=require('./workout2-fixtures.js');
+const M=require('../scripts/workout-model.js');
+const {fixture}=require('./workout-fixtures.js');
 
 test('default data round-trips with no nutrition or body-weight fields',()=>{
  const state=M.normalize(M.defaults());assert.deepEqual(M.normalize(JSON.parse(JSON.stringify(state))),state);
@@ -10,11 +10,11 @@ test('default data round-trips with no nutrition or body-weight fields',()=>{
 test('logging a lighter second set preserves the first set and forbids false progression',()=>{
  const s=fixture();M.logSet(s,'push','ex_0',0,40,8);const session=M.logSet(s,'push','ex_0',1,35,6);
  assert.deepEqual(session.entries.ex_0.sets,[{w:40,reps:8},{w:35,reps:6}]);
- M.finish(s,'push',true);session.d='2020-01-01';
+ M.finish(s,'push');session.d='2020-01-01';
  assert.deepEqual(M.nextTarget(s.ex[0],M.index(s).history.get('ex_0')),{sets:[{w:40,reps:8},{w:35,reps:6}],increase:false,review:false});
 });
 test('progression waits for both sets to reach the top of the range',()=>{
- const s=fixture();M.logSet(s,'push','ex_0',0,40,8);M.logSet(s,'push','ex_0',1,40,6);const session=M.finish(s,'push',true);session.d='2020-01-01';
+ const s=fixture();M.logSet(s,'push','ex_0',0,40,8);M.logSet(s,'push','ex_0',1,40,6);const session=M.finish(s,'push');session.d='2020-01-01';
  assert.equal(M.nextTarget(s.ex[0],M.index(s).history.get('ex_0')).increase,false);
  session.entries.ex_0.sets[1].reps=8;
  assert.deepEqual(M.nextTarget(s.ex[0],M.index(s).history.get('ex_0')),{sets:[{w:42.5,reps:6},{w:42.5,reps:6}],increase:true,review:false});
@@ -32,23 +32,26 @@ test('three comparable poor workouts prompt review without automatically lowerin
 test('unfinished workout is resumed after serialization and counted only when finished',()=>{
  let s=fixture();M.logSet(s,'push','ex_0',0,40,8);s=M.normalize(JSON.parse(JSON.stringify(s)));
  assert.equal(M.suggested(s),'push');assert.equal(M.index(s).routineStats.get('push').count,0);
- M.finish(s,'push',true);assert.equal(M.index(s).routineStats.get('push').count,1);assert.equal(M.suggested(s),'pull');
+ M.finish(s,'push');assert.equal(M.index(s).routineStats.get('push').count,1);assert.equal(M.suggested(s),'pull');
 });
 test('adding an unlogged exercise does not count as a finished workout',()=>{
  const s=fixture();M.addExercise(s,'push','ex_5');assert.equal(M.stats(s.sessions[0]).logged,0);assert.equal(M.index(s).routineStats.get('push').count,0);
- assert.throws(()=>M.finish(s,'push',true));
+ assert.throws(()=>M.finish(s,'push'));
 });
-test('finish requires remaining sets to be explicitly skipped',()=>{
- const s=fixture();M.logSet(s,'push','ex_0',0,40,8);assert.throws(()=>M.finish(s,'push',false));
- const session=M.finish(s,'push',true);assert.deepEqual(M.stats(session),{logged:1,skipped:9,total:10,remaining:0});
+test('finish skips only unlogged sets and preserves completed and partial exercises',()=>{
+ const s=fixture();M.logSet(s,'push','ex_0',0,40,8);M.logSet(s,'push','ex_0',1,35,7);M.logSet(s,'push','ex_1',1,30,6);
+ const session=M.finish(s,'push');assert.equal(session.status,'finished');assert.deepEqual(M.stats(session),{logged:3,skipped:7,total:10,remaining:0});
+ assert.deepEqual(session.entries.ex_0,{sets:[{w:40,reps:8},{w:35,reps:7}],skipped:false});
+ assert.deepEqual(session.entries.ex_1,{sets:[null,{w:30,reps:6}],skipped:true});
+ assert.deepEqual(session.entries.ex_2,{sets:[null,null],skipped:true});M.normalize(s);
 });
 test('same-day history deletion uses session ID and preserves the other routine',()=>{
- const s=fixture();const push=M.logSet(s,'push','ex_4',0,10,12);M.finish(s,'push',true);
- const pull=M.logSet(s,'pull','ex_4',0,20,12);M.finish(s,'pull',true);
+ const s=fixture();const push=M.logSet(s,'push','ex_4',0,10,12);M.finish(s,'push');
+ const pull=M.logSet(s,'pull','ex_4',0,20,12);M.finish(s,'pull');
  M.deleteHistory(s,pull.id,'ex_4');assert.equal(s.sessions.length,1);assert.equal(s.sessions[0].id,push.id);assert.equal(s.sessions[0].entries.ex_4.sets[0].w,10);
 });
 test('second-set-only workout remains in history but does not drive progression',()=>{
- const s=fixture();const session=M.logSet(s,'push','ex_0',1,40,6);M.finish(s,'push',true);session.d='2020-01-01';
+ const s=fixture();const session=M.logSet(s,'push','ex_0',1,40,6);M.finish(s,'push');session.d='2020-01-01';
  const history=M.index(s).history.get('ex_0');assert.equal(history.length,1);assert.equal(history[0].sets[0],null);assert.equal(M.nextTarget(s.ex[0],history),null);
 });
 test('routine order is explicit and an active session retains its snapshot',()=>{
@@ -95,10 +98,10 @@ test('three full-body defaults provide the planned volume without the optional d
 test('optional sessions never displace the main rotation but unfinished ones resume',()=>{
  const s=M.defaults();assert.equal(M.suggested(s),'full_a');
  for(const [i,id] of ['full_a','full_b','full_c'].entries()){
-  const key=s.routines.find(r=>r.id===id).ex[0];M.logSet(s,id,key,0,40,8);const session=M.finish(s,id,true);session.d=`2020-01-0${i+1}`;
+  const key=s.routines.find(r=>r.id===id).ex[0];M.logSet(s,id,key,0,40,8);const session=M.finish(s,id);session.d=`2020-01-0${i+1}`;
  }
  assert.equal(M.suggested(s),'full_a');M.logSet(s,'optional','lateral_raise',0,5,15);assert.equal(M.suggested(s),'optional');
- M.finish(s,'optional',true);assert.equal(M.suggested(s),'full_a');
+ M.finish(s,'optional');assert.equal(M.suggested(s),'full_a');
  s.routines.filter(r=>!r.optional).forEach(r=>r.archived=true);assert.equal(M.suggested(s),'optional');
 });
 
@@ -134,4 +137,58 @@ test('disabled progression yields no targets and small increments retain decimal
 test('optional-day flags must be valid and survive a backup round-trip',()=>{
  const s=M.defaults();assert.equal(M.normalize(JSON.parse(JSON.stringify(s))).routines.at(-1).optional,true);
  s.routines[0].optional='yes';assert.throws(()=>M.normalize(s));
+});
+
+
+test('import rejects exercise IDs inherited from Object.prototype',()=>{
+ for(const key of ['toString','valueOf','hasOwnProperty','isPrototypeOf','propertyIsEnumerable','toLocaleString']){
+  const s=M.defaults();s.ex[0].id=key;s.routines.forEach(r=>r.ex=r.ex.map(id=>id==='incline_press'?key:id));assert.throws(()=>M.normalize(s),/Invalid exercise definition/);
+ }
+});
+
+test('archiving a completed exercise in an active workout does not mark its sets skipped',()=>{
+ const s=fixture();M.logSet(s,'push','ex_0',0,40,8);M.logSet(s,'push','ex_0',1,40,8);M.archiveExercise(s,'ex_0');
+ assert.equal(s.sessions[0].entries.ex_0.skipped,false);assert.deepEqual(M.stats(s.sessions[0]),{logged:2,skipped:0,total:10,remaining:8});
+});
+
+
+test('seeded model fuzz preserves valid state and set accounting through 10,000 operations',()=>{
+ for(let seed=1;seed<=40;seed++){
+  let n=seed,s=M.defaults();const random=max=>{n=(Math.imul(n,1664525)+1013904223)>>>0;return n%max;};
+  for(let step=0;step<250;step++){
+   const routine=s.routines[random(s.routines.length)],available=s.ex.filter(e=>!e.archived),key=available[random(available.length)]?.id;
+   const active=M.sessionFor(s,routine.id),planned=active?.ex||routine.ex,exercise=planned[random(planned.length)];
+   switch(random(8)){
+    case 0:if(exercise)M.logSet(s,routine.id,exercise,random(2),random(50000)/100,1+random(30));break;
+    case 1:if(exercise)M.skipExercise(s,routine.id,exercise,!!random(2));break;
+    case 2:if(active&&M.stats(active).logged)M.finish(s,routine.id);break;
+    case 3:if(key)M.addExercise(s,routine.id,key);break;
+    case 4:if(key)M.archiveExercise(s,key);break;
+    case 5:if(s.sessions.length){const session=s.sessions[random(s.sessions.length)],keys=Object.keys(session.entries);if(keys.length)M.deleteHistory(s,session.id,keys[random(keys.length)]);}break;
+    case 6:if(routine.ex.length)M.reorder(routine.ex,random(routine.ex.length),random(routine.ex.length));break;
+    case 7:s.ex[random(s.ex.length)].archived=false;break;
+   }
+   const roundTrip=M.normalize(JSON.parse(JSON.stringify(s)));assert.deepEqual(M.normalize(roundTrip),roundTrip,`seed ${seed}, step ${step}`);s=roundTrip;
+   for(const session of s.sessions){const counts=M.stats(session);assert(counts.remaining>=0);assert.equal(counts.logged+counts.skipped+counts.remaining,counts.total);}
+   assert.doesNotThrow(()=>M.index(s));
+  }
+ }
+});
+
+test('JSON value fuzz rejects invalid fields and round-trips accepted values without mutation',()=>{
+ const values=[null,true,false,{},[],0,-1,1.5,'','NaN','<img src=x onerror=alert(1)>'];
+ const mutations=[
+  [s=>v=>s.ex=v,()=>false],
+  [s=>v=>s.routines=v,Array.isArray],
+  [s=>v=>s.sessions=v,Array.isArray],
+  [s=>v=>s.ex[0].archived=v,v=>typeof v==='boolean'],
+  [s=>v=>s.routines[0].optional=v,v=>typeof v==='boolean'],
+  [s=>v=>s.ex[0].id=v,()=>false]
+ ];
+ for(const value of values)for(const [mutate,valid] of mutations){
+  const s=M.defaults();mutate(s)(value);const raw=JSON.stringify(s);
+  if(valid(value)){const accepted=M.normalize(s);M.index(accepted);assert.deepEqual(M.normalize(JSON.parse(JSON.stringify(accepted))),accepted);}
+  else assert.throws(()=>M.normalize(s));
+  assert.equal(JSON.stringify(s),raw);
+ }
 });

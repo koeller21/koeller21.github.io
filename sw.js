@@ -1,38 +1,22 @@
-// network-first, cache-fallback: always fresh online, works offline. no update dance,
-// no version bumps needed here - the page's ?v= scheme stays the source of truth.
-// all fetches bypass the HTTP cache ('no-store'): otherwise a stale HTTP-cache hit
-// masquerades as "network ok" and serves mixed old/new files instead of our cache.
-var CACHE = 'wlog-v2';
-var PRECACHE = [
-    '/pages/workout.html',
-    '/scripts/workout.js',
-    '/styles/workout.css',
-    '/favicon.ico'
+// Network first; cache the workout app for offline reloads.
+const CACHE = 'wlog-v5';
+const PRECACHE = [
+ '/pages/workout.html', '/scripts/workout-model.js', '/scripts/workout.js', '/styles/workout.css',
+ '/favicon.ico', '/manifest.json', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/apple-touch-icon.png'
 ];
-
-self.addEventListener('install', function(e){
-    e.waitUntil(caches.open(CACHE).then(function(c){
-        return c.addAll(PRECACHE.map(function(u){ return new Request(u, {cache: 'no-store'}); }));
-    }).then(function(){ return self.skipWaiting(); }));
+self.addEventListener('install', event=>{
+ event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(PRECACHE.map(url=>new Request(url,{cache:'no-store'})))).then(()=>self.skipWaiting()));
 });
-
-self.addEventListener('activate', function(e){
-    e.waitUntil(caches.keys().then(function(ks){
-        return Promise.all(ks.filter(function(k){ return k !== CACHE; }).map(function(k){ return caches.delete(k); }));
-    }).then(function(){ return self.clients.claim(); }));
+self.addEventListener('activate', event=>{
+ event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key.startsWith('wlog-')&&key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim()));
 });
-
-self.addEventListener('fetch', function(e){
-    if(e.request.method !== 'GET') return;
-    e.respondWith(
-        fetch(e.request.url, {cache: 'no-store'}).then(function(res){
-            if(res.ok){
-                var copy = res.clone();
-                caches.open(CACHE).then(function(c){ c.put(e.request.url, copy); });
-            }
-            return res;
-        }).catch(function(){
-            return caches.match(e.request.url, {ignoreSearch: true});   // offline: any cached ?v= variant beats nothing
-        })
-    );
+self.addEventListener('fetch', event=>{
+ if(event.request.method!=='GET'||new URL(event.request.url).origin!==self.location.origin)return;
+ event.respondWith(fetch(event.request,{cache:'no-store'}).then(response=>{
+  if(response.ok){const copy=response.clone();event.waitUntil(caches.open(CACHE).then(cache=>cache.put(event.request,copy)).catch(()=>{}));}
+  return response;
+ }).catch(async()=>{
+  const cache=await caches.open(CACHE);
+  return await cache.match(event.request)||await cache.match(event.request,{ignoreSearch:true})||Response.error();
+ }));
 });
