@@ -7,6 +7,24 @@ let state, ix, routineId=null, mode='workout', activeExercise=null, editingSet=n
 let undo=null, sheetStack=[], sheetReturnFocus=null, routineDraft=null, draftDirty=false, externalPending=false, storedSnapshot=null, loadFailed=false;
 const dialog=$('sheet'), content=$('sheet-content'), wide=matchMedia('(min-width: 900px)');
 const renderedCards=new WeakMap(), setDrafts=new Map();
+const icons={
+ dumbbell:'<path d="M6 6v12M3 9v6M18 6v12M21 9v6M6 12h12"/>',
+ sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/>',
+ moon:'<path d="M20.9 13A9 9 0 0 1 11 3.1 9 9 0 1 0 20.9 13Z"/>',
+ download:'<path d="M12 3v12m-5-5 5 5 5-5M5 16v4h14v-4"/>',
+ upload:'<path d="M12 15V3m-5 5 5-5 5 5M5 16v4h14v-4"/>',
+ chart:'<path d="M4 4v16h16M7 14l4-4 4 2 5-7m-5 0h5v5"/>',
+ history:'<path d="M3 11a9 9 0 1 1 2.6 7M3 4v7h7M12 7v5l3 2"/>',
+ chevron:'<path d="m9 5 7 7-7 7"/>',
+ check:'<path d="m5 12 4 4L19 6"/>',
+ plus:'<path d="M12 5v14M5 12h14"/>',
+ close:'<path d="m6 6 12 12M6 18 18 6"/>',
+ back:'<path d="m14 5-7 7 7 7"/>',
+ edit:'<path d="m14 5 5 5M4 20l5-1L20 8a2 2 0 0 0-5-5L4 14Z"/>',
+ settings:'<path d="M4 7h6m4 0h6M4 17h10m4 0h2"/><circle cx="12" cy="7" r="2"/><circle cx="16" cy="17" r="2"/>'
+};
+function icon(name){return `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${icons[name]}</svg>`;}
+for(const el of document.querySelectorAll('[data-icon]'))el.innerHTML=icon(el.dataset.icon);
 
 function notice(message,isError=false){
  const prefix=dialog.open?'sheet-':'';
@@ -60,32 +78,33 @@ function setText(set){return set ? `${set.w} kg × ${set.reps}` : 'Not logged';}
 
 function cardHTML(key){
  const def=ix.exercises.get(key),session=selectedSession(),entry=session?.entries[key],editable=canEdit();
- const expanded=activeExercise===key && editable;
+ const expanded=activeExercise===key,logged=entry?.sets.filter(Boolean).length||0;
  const history=(ix.history.get(key)||[]).filter(h=>h.session!==session?.id),last=history.at(-1);
  const target=M.nextTarget(def,history,session?.d || M.today());
- let html=`<article class="exercise-card" id="card-${key}" data-key="${key}">
-  <div class="exercise-heading">${button('expand',`<span>${esc(def.name)}</span><span class="muted small">${entry?.skipped ? 'Skipped' : `${entry?.sets.filter(Boolean).length||0}/2 sets`}</span>`,`data-key="${key}" aria-expanded="${expanded}" aria-controls="sets-${key}"`,'exercise-toggle')}
-  ${button('detail','History',`data-key="${key}" aria-label="History for ${esc(def.name)}"`)}</div>
-  <p class="exercise-context">${target ? `Suggested ${target.w} kg × ${target.reps}` : `${def.min}–${def.max} reps`}${last ? ` · Last: ${last.sets.filter(Boolean).map(setText).join(' / ')}` : ' · First session'}</p>
-  <div id="sets-${key}">`;
+ const status=entry?.skipped ? 'Skipped' : logged===2 ? 'Complete' : `${logged}/2 sets`;
+ let html=`<article class="exercise-card${expanded?' is-active':''}${logged===2?' is-complete':''}" id="card-${key}" data-key="${key}">
+  <div class="exercise-heading">${button('expand',`<span class="exercise-name">${esc(def.name)}</span><span class="exercise-state">${logged===2?icon('check'):''}${status}</span>${icon('chevron')}`,`data-key="${key}" aria-expanded="${expanded}" aria-controls="sets-${key}"`,'exercise-toggle')}
+  ${button('detail',icon('history'),`data-key="${key}" aria-label="History for ${esc(def.name)}" title="Exercise history"`,'icon-button history-button')}</div>
+  <p class="exercise-context"><span>${target ? `Suggested ${target.w} kg × ${target.reps}` : `${def.min}–${def.max} reps`}</span>${expanded&&last ? `<span>Last: ${last.sets.filter(Boolean).map(setText).join(' / ')}</span>` : ''}</p>
+  <div id="sets-${key}" ${expanded?'':'hidden'}>`;
  for(let slot=0;slot<2;slot++){
   const set=entry?.sets[slot],editing=editingSet?.key===key && editingSet.slot===slot;
-  if(expanded && (!set || editing) && (!entry?.skipped || editing)){
+  if(expanded && editable && (!set || editing) && (!entry?.skipped || editing)){
    const val=prefill(key,slot);
    html+=`<form class="set-form" data-form="set" data-key="${key}" data-slot="${slot}" novalidate>
     <span class="set-number">Set ${slot+1}</span>
-    <label>Weight <span class="muted">kg</span><input name="weight" type="text" inputmode="decimal" autocomplete="off" value="${esc(val.w)}" required aria-label="${esc(def.name)}, set ${slot+1}, weight in kg"></label>
-    <label>Reps<input name="reps" type="text" inputmode="numeric" autocomplete="off" value="${esc(val.reps)}" required aria-label="${esc(def.name)}, set ${slot+1}, reps"></label>
+    <label>Weight <span class="muted">kg</span><input name="weight" type="text" inputmode="decimal" autocomplete="off" enterkeyhint="next" value="${esc(val.w)}" required aria-label="${esc(def.name)}, set ${slot+1}, weight in kg"></label>
+    <label>Reps<input name="reps" type="text" inputmode="numeric" autocomplete="off" enterkeyhint="done" value="${esc(val.reps)}" required aria-label="${esc(def.name)}, set ${slot+1}, reps"></label>
     <button class="primary set-submit" type="submit">${set ? 'Save' : 'Log set '+(slot+1)}</button>
     <p class="field-error" role="alert" hidden></p></form>`;
   }else{
-   html+=`<div class="set-summary"><span class="set-number">Set ${slot+1}</span><span class="${set ? 'logged' : 'muted'}">${set ? setText(set)+' <span aria-label="logged">✓</span>' : entry?.skipped ? 'Skipped' : 'Not logged'}</span>${editable ? button('edit-set',set ? 'Edit' : 'Enter',`data-key="${key}" data-slot="${slot}" aria-label="${set ? 'Edit' : 'Enter'} ${esc(def.name)}, set ${slot+1}"`) : ''}</div>`;
+   html+=`<div class="set-summary"><span class="set-number">Set ${slot+1}</span><span class="${set ? 'logged' : 'muted'}">${set ? setText(set)+icon('check') : entry?.skipped ? 'Skipped' : 'Not logged'}</span>${editable ? button('edit-set',set ? 'Edit' : 'Enter',`data-key="${key}" data-slot="${slot}" aria-label="${set ? 'Edit' : 'Enter'} ${esc(def.name)}, set ${slot+1}"`) : ''}</div>`;
   }
  }
- html+='</div>';
- if(expanded){html+=`<div class="card-actions">${entry?.skipped ? button('unskip','Restore skipped sets',`data-key="${key}"`) : (!entry || entry.sets.some(s=>!s)) ? button('skip','Skip remaining sets',`data-key="${key}"`) : '<span class="logged small">Exercise complete</span>'}</div>`;}
- return html+'</article>';
+ if(expanded&&editable){html+=`<div class="card-actions">${entry?.skipped ? button('unskip','Restore skipped sets',`data-key="${key}"`) : (!entry || entry.sets.some(s=>!s)) ? button('skip','Skip remaining sets',`data-key="${key}"`) : '<span class="logged small">Exercise complete</span>'}</div>`;}
+ return html+'</div></article>';
 }
+
 function patchCards(){
  const root=$('cards'),keys=currentNames();
  for(const child of [...root.children])if(!keys.includes(child.dataset.key))child.remove();
@@ -101,7 +120,7 @@ function patchCards(){
 function renderDrawer(){
  const html=state.routines.filter(r=>!r.archived).map(r=>{
   const stats=ix.routineStats.get(r.id),current=r.id===routineId;
-  return button('routine',`<span>${esc(r.name)}</span><span class="muted small">${stats.active ? 'Resume' : stats.last ? formatDate(stats.last) : 'Not started'}</span>`,`data-id="${r.id}" ${current ? 'aria-current="page"' : ''}`,'routine-link');
+  return button('routine',`<span class="routine-name">${esc(r.name)}</span><span class="routine-meta">${stats.active ? 'In progress' : stats.last ? 'Last '+formatDate(stats.last) : 'Not started'}</span>`,`data-id="${r.id}" ${current ? 'aria-current="page"' : ''}`,'routine-link');
  }).join('');
  if($('routines').innerHTML!==html)$('routines').innerHTML=html;
 }
@@ -120,6 +139,7 @@ function render(){
    const label=session?.status==='finished' ? 'Finished' : stats.logged ? 'In progress' : 'Ready to start';
    $('subtitle').textContent=`${label} · ${stats.logged}/${stats.total} sets logged${stats.skipped ? ` · ${stats.skipped} skipped` : ''}${session && session.d!==M.today() ? ` · ${formatDate(session.d)}` : ''}`;
    $('workout-progress').max=stats.total||1;$('workout-progress').value=stats.logged+stats.skipped;
+   $('workout-progress').setAttribute('aria-valuetext',`${stats.logged} logged, ${stats.skipped} skipped, ${stats.total} total sets`);
    $('add-exercise').hidden=!canEdit();$('finish').hidden=!canEdit();$('finish').disabled=!stats.logged;
    $('reopen').hidden=session?.status!=='finished';$('new-workout').hidden=session?.status!=='finished';$('discard').hidden=session?.status!=='active';
    $('no-exercises').hidden=currentNames().length>0;
@@ -138,12 +158,12 @@ function renderProgress(){
  const routine=ix.routines.get(routineId),stats=ix.routineStats.get(routineId);
  $('subtitle').textContent=`${stats.count} finished workout${stats.count===1?'':'s'}${stats.last ? ` · Last ${formatDate(stats.last)}` : ''}`;
  // Include exercises removed from the routine if its history still contains them.
- const keys=[...new Set([...routine.ex,...state.sessions.filter(s=>s.r===routineId).flatMap(s=>s.ex)])];
+ const keys=[...new Set([...routine.ex,...state.sessions.filter(s=>s.r===routineId).flatMap(s=>s.ex)])].filter(key=>ix.history.get(key)?.length);
  $('progress-view').innerHTML=keys.map(key=>{
   const def=ix.exercises.get(key),history=ix.history.get(key)||[],values=history.map(h=>M.estimate(h.sets)),delta=values.length>1 ? M.changePercent(values[0],values.at(-1)) : null;
   return `<button class="progress-card" data-act="detail" data-key="${key}"><span class="progress-heading">${esc(def.name)}${def.archived?' <span class="muted small">Archived</span>':''}</span>${graph(values,def.name+' estimated strength trend')}
    <span class="muted small">${values.length ? `Estimated 1RM ${Math.round(values.at(-1))} kg · ${values.length} logged workout${values.length===1?'':'s'} across routines` : 'No sets logged yet'}</span>${delta!==null ? `<span class="delta ${delta>0?'positive':delta<0?'negative':''}">${delta>0?'+':''}${delta}%</span>` : ''}</button>`;
- }).join('') || '<p class="empty-note">Add exercises to see your progress here.</p>';
+ }).join('') || `<div class="empty-state">${icon('chart')}<h2>Your progress starts here</h2><p>Log your first sets to see exercise trends and workout history.</p>${button('view','Go to workout','data-view="workout"','secondary')}</div>`;
 }
 
 function setDrawer(open){
@@ -157,6 +177,7 @@ function setDrawer(open){
 function closeDrawer(){setDrawer(false);if(!wide.matches)$('menu').focus();}
 wide.addEventListener('change',()=>setDrawer(false));
 document.addEventListener('keydown',event=>{
+ if(event.key==='Enter'&&event.target.matches('[data-form="set"] [name="weight"]')){event.preventDefault();event.target.form.elements.reps.focus();return;}
  if(document.documentElement.classList.contains('is-open')&&!wide.matches){
   if(event.key==='Escape'){event.preventDefault();closeDrawer();}
   if(event.key==='Tab'){
@@ -171,22 +192,33 @@ document.addEventListener('keydown',event=>{
 function sheet(title,html,setup){
  $('sheet-title').textContent=title;content.innerHTML=html;content.scrollTop=0;
  $('sheet-back').hidden=sheetStack.length<=1;
- if(!dialog.open){sheetReturnFocus=document.activeElement;dialog.showModal();if(!$('notice').hidden)notice($('notice-text').textContent,$('notice').classList.contains('error'));}
+ if(!dialog.open){sheetReturnFocus=document.activeElement;dialog.showModal();document.documentElement.classList.add('modal-open');if(!$('notice').hidden)notice($('notice-text').textContent,$('notice').classList.contains('error'));}
  if(setup)setup();$('sheet-title').focus();draftDirty=false;
 }
 function pushSheet(renderer){sheetStack.push(renderer);renderer();}
 function backSheet(){if(sheetStack.length>1){sheetStack.pop();sheetStack.at(-1)();}}
 function closeSheet(){dialog.close();}
 dialog.addEventListener('close',()=>{
- sheetStack=[];routineDraft=null;draftDirty=false;
+ sheetStack=[];routineDraft=null;draftDirty=false;document.documentElement.classList.remove('modal-open');
  if(sheetReturnFocus?.isConnected)sheetReturnFocus.focus();else $('title').focus();
  if(!$('sheet-notice').hidden)notice($('sheet-notice-text').textContent,$('sheet-notice').classList.contains('error'));
  if(externalPending)reload();
 });
 dialog.addEventListener('click',event=>{if(event.target===dialog){const r=dialog.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)closeSheet();}});
 function showSettings(){
- sheet('Settings',`<div class="action-list">${button('manager','Exercises & routines')}${button('theme',`Use ${document.documentElement.dataset.theme==='dark'?'light':'dark'} theme`)}${button('export','Export workout data')}${button('import','Import workout data')}${button('about','Progression rules')}</div>`);
+ const dark=document.documentElement.dataset.theme==='dark';
+ const actions=[['manager','Exercises & routines','dumbbell'],['theme',`Use ${dark?'light':'dark'} theme`,dark?'sun':'moon'],['export','Export workout data','download'],['import','Import workout data','upload'],['about','Progression rules','chart']];
+ sheet('Settings',`<div class="action-list settings-actions">${actions.map(([action,label,symbol])=>button(action,`${icon(symbol)}<span>${label}</span>${['manager','about'].includes(action)?icon('chevron'):''}`)).join('')}</div>`);
 }
+function applyTheme(theme){
+ document.documentElement.dataset.theme=theme;
+ document.querySelector('meta[name="theme-color"]').content=theme==='dark'?'#0d0d0d':'#ffffff';
+ if(dialog.open&&sheetStack.at(-1)===showSettings){
+  const action=document.activeElement?.dataset.act;showSettings();
+  if(action)content.querySelector(`[data-act="${action}"]`)?.focus({preventScroll:true});
+ }
+}
+
 function showManager(){
  const rows=(items,act)=>items.map(item=>button(act,`${esc(item.name)}${item.archived?' <span class="muted">(archived)</span>':''}`,`data-id="${item.id}"`)).join('');
  sheet('Exercises & routines',`<h3>Routines</h3><div class="action-list">${rows(state.routines,'edit-routine')}${button('edit-routine','＋ New routine')}</div><h3>Exercises</h3><div class="action-list">${rows(state.ex,'edit-exercise')}${button('edit-exercise','＋ New exercise')}</div>`);
@@ -239,13 +271,14 @@ function reload(){
  try{
   const raw=localStorage.getItem(KEY);
   if(raw===storedSnapshot){externalPending=false;if(!draftDirty&&!dialog.open&&!loadFailed)render();return;}
-  if(draftDirty || dialog.open){externalPending=true;undo=null;notice('Workout data changed. Close your edit and reload before saving.',true);return;}
+  if(draftDirty || setDrafts.size || dialog.open){externalPending=true;undo=null;notice('Workout data changed. Close your edit and reload before saving.',true);return;}
   const next=load(raw);state=next;storedSnapshot=raw;ix=M.index(state);undo=null;editingSet=null;externalPending=false;setDrafts.clear();render();
  }catch(error){notice('Could not reload workout data: '+error.message,true);}
 }
 function exportData(){
  const url=URL.createObjectURL(new Blob([JSON.stringify(state,null,2)],{type:'application/json'}));
  const a=document.createElement('a');a.href=url;a.download='workout-'+M.today()+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+ notice('Workout backup downloaded.');
 }
 async function importFile(file){
  try{
@@ -268,11 +301,16 @@ document.addEventListener('submit',event=>{
   const w=numeric(inputs.weight),reps=numeric(inputs.reps),key=form.dataset.key,slot=+form.dataset.slot;
   if(!Number.isFinite(w)||w<0||w>100000){fieldError(form,'Enter a weight from 0 to 100,000 kg.',inputs.weight);return;}
   if(!Number.isInteger(reps)||reps<1||reps>1000){fieldError(form,'Enter whole-number reps from 1 to 1,000.',inputs.reps);return;}
-  if(commit('Set '+(slot+1)+' logged.',s=>M.logSet(s,routineId,key,slot,w,reps),{after:()=>{editingSet=null;setDrafts.delete(key+':'+slot);}})){
-   const session=selectedSession();
-   const nextKey=currentNames().find(k=>!session.entries[k]?.skipped && (!session.entries[k] || session.entries[k].sets.some(s=>!s)));
-   activeExercise=nextKey||key;patchCards();
-   const focus=$('card-'+activeExercise)?.querySelector('input')||$('finish');focus.focus();
+  const correcting=!!selectedSession()?.entries[key]?.sets[slot],typing=document.activeElement.tagName==='INPUT';
+  if(commit(correcting?'Set updated.':'Set '+(slot+1)+' logged.',s=>M.logSet(s,routineId,key,slot,w,reps),{after:()=>{
+   editingSet=null;setDrafts.delete(key+':'+slot);
+   const session=selectedSession(),keys=currentNames(),at=keys.indexOf(key);
+   const order=[key,...keys.slice(at+1),...keys.slice(0,at)];
+   activeExercise=correcting ? key : order.find(k=>!session.entries[k]?.skipped && (!session.entries[k] || session.entries[k].sets.some(s=>!s)))||key;
+  }})){
+   const card=$('card-'+activeExercise);
+   const focus=correcting ? card.querySelector(`[data-act="edit-set"][data-slot="${slot}"]`) : card.querySelector(typing?'input':'form button[type="submit"]')||$('finish');
+   focus?.focus({preventScroll:correcting});
   }
  }else if(form.dataset.form==='exercise'){
   const key=form.dataset.id,add=form.dataset.add==='true',name=inputs.name.value.trim(),min=numeric(inputs.min),max=numeric(inputs.max),inc=numeric(inputs.inc);
@@ -298,7 +336,7 @@ document.addEventListener('click',event=>{
  else if(act==='close-drawer')closeDrawer();
  else if(act==='routine'){routineId=id;activeExercise=null;editingSet=null;draftDirty=false;setDrafts.clear();render();closeDrawer();if(wide.matches)$('title').focus();}
  else if(act==='view'){mode=el.dataset.view;draftDirty=false;editingSet=null;render();}
- else if(act==='expand'){activeExercise=activeExercise===key ? null : key;editingSet=null;patchCards();}
+ else if(act==='expand'){activeExercise=activeExercise===key ? null : key;editingSet=null;patchCards();$('card-'+key).querySelector('.exercise-toggle').focus({preventScroll:true});}
  else if(act==='edit-set'){activeExercise=key;editingSet={key,slot:+el.dataset.slot};patchCards();$('card-'+key).querySelector(`[data-slot="${editingSet.slot}"] input`)?.focus();}
  else if(act==='skip'||act==='unskip')commit(act==='skip'?'Remaining sets skipped.':'Skipped sets restored.',s=>M.skipExercise(s,routineId,key,act==='skip'));
  else if(act==='finish')finishWorkout();
@@ -339,9 +377,9 @@ document.addEventListener('click',event=>{
  else if(act==='dismiss-notice'){el.parentElement.hidden=true;}
  else if(act==='reload') {draftDirty=false;if(dialog.open)closeSheet();reload();}
  else if(act==='theme'){
-  const theme=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=theme;
+  const theme=document.documentElement.dataset.theme==='dark'?'light':'dark';applyTheme(theme);
   try{localStorage.setItem('wtheme',theme);}catch(error){notice('Theme changed for this visit only.',true);}
-  document.querySelector('meta[name="theme-color"]').content=theme==='dark'?'#0d0d0d':'#ffffff';refreshSheet();
+  content.querySelector('[data-act="theme"]')?.focus({preventScroll:true});
  }
  else if(act==='export')exportData();
  else if(act==='export-raw'){
@@ -353,7 +391,7 @@ document.addEventListener('click',event=>{
 $('importfile').addEventListener('change',event=>{const file=event.target.files[0];event.target.value='';if(file)importFile(file);});
 window.addEventListener('storage',event=>{
  if(event.key===KEY){undo=null;reload();}
- if(event.key==='wtheme'){document.documentElement.dataset.theme=event.newValue==='dark'?'dark':'light';document.querySelector('meta[name="theme-color"]').content=event.newValue==='dark'?'#0d0d0d':'#ffffff';}
+ if(event.key==='wtheme')applyTheme(event.newValue==='dark'?'dark':'light');
 });
 window.addEventListener('pageshow',event=>{if(event.persisted)reload();});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden){
